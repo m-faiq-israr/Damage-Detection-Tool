@@ -28,7 +28,7 @@ def check_image_quality(file):
 
     height, width = image.shape[:2]
 
-    # ---------- Resolution ----------
+    # ---------- Resolution --------
 
     # if width < 800 or height < 600:
     #     errors.append(
