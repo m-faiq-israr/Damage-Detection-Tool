@@ -1,7 +1,14 @@
-from django.shortcuts import render
+from pathlib import Path
+
+from django.conf import settings
 from django.core.files.storage import FileSystemStorage
-from httpx import request
+from django.shortcuts import render
+
 from .ai.quality_check import check_image_quality
+from .ai.detector import detect_damage
+from .ai.compare import compare_damage
+from .ai.report import generate_report
+
 
 PARTS = [
     "front",
@@ -14,14 +21,20 @@ PARTS = [
 
 
 def index(request):
+
     uploaded = {}
     quality_errors = []
+    inspection_results = {}
+    json_report = ""
 
     if request.method == "POST":
 
-    # ---------- Check all images first ----------
+        # ----------------------------
+        # Step 1: Quality Check
+        # ----------------------------
 
         for stage in ["before", "after"]:
+
             for part in PARTS:
 
                 field = f"{stage}_{part}"
@@ -36,16 +49,21 @@ def index(request):
 
                         quality_errors.append({
                             "field": field,
-                         "errors": result["errors"]
-                     })
+                            "errors": result["errors"]
+                        })
 
-    # ---------- Only save if ALL images passed ----------
+        # ----------------------------
+        # Step 2: Save Images
+        # ----------------------------
 
         if not quality_errors:
 
             fs = FileSystemStorage()
 
+            saved_files = {}
+
             for stage in ["before", "after"]:
+
                 for part in PARTS:
 
                     field = f"{stage}_{part}"
@@ -58,6 +76,50 @@ def index(request):
 
                         uploaded[field] = fs.url(filename)
 
+                        saved_files[field] = Path(
+                            settings.MEDIA_ROOT
+                        ) / filename
+
+            # ----------------------------
+            # Step 3: YOLO Detection
+            # ----------------------------
+
+            for part in PARTS:
+
+                before_key = f"before_{part}"
+                after_key = f"after_{part}"
+
+                if (
+                    before_key not in saved_files
+                    or after_key not in saved_files
+                ):
+                    continue
+
+                before_path = str(saved_files[before_key])
+                after_path = str(saved_files[after_key])
+
+                before_damage = detect_damage(before_path)
+                after_damage = detect_damage(after_path)
+
+                new_damage = compare_damage(
+                    before_damage,
+                    after_damage
+                )
+
+                inspection_results[part] = {
+                    "before": before_damage,
+                    "after": after_damage,
+                    "new_damage": new_damage,
+                }
+
+            # ----------------------------
+            # Step 4: JSON Report
+            # ----------------------------
+
+            json_report = generate_report(
+                inspection_results
+            )
+
     return render(
         request,
         "inspections/index.html",
@@ -65,5 +127,7 @@ def index(request):
             "uploaded": uploaded,
             "parts": PARTS,
             "quality_errors": quality_errors,
+            "inspection_results": inspection_results,
+            "json_report": json_report,
         },
     )

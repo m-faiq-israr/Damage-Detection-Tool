@@ -205,9 +205,13 @@
         <div class="card-body">
 
 <pre>
+{% if json_report %}
+{{ json_report }}
+{% else %}
 {
-    "status":"Pending AI Comparison"
+    "status": "Pending AI Comparison"
 }
+{% endif %}
 </pre>
 
         </div>
