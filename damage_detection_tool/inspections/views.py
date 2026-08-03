@@ -98,8 +98,25 @@ def index(request):
                 before_path = str(saved_files[before_key])
                 after_path = str(saved_files[after_key])
 
-                before_damage = detect_damage(before_path)
-                after_damage = detect_damage(after_path)
+                before_output = str(saved_files[before_key]).replace(
+                    ".jpg",
+                    "_annotated.jpg"
+                )
+
+                after_output = str(saved_files[after_key]).replace(
+                    ".jpg",
+                    "_annotated.jpg"
+                )
+
+                before_damage, before_annotated = detect_damage(
+                    before_path,
+                    before_output
+                )
+
+                after_damage, after_annotated = detect_damage(
+                    after_path,
+                    after_output
+                )
 
                 new_damage = compare_damage(
                     before_damage,
@@ -107,9 +124,28 @@ def index(request):
                 )
 
                 inspection_results[part] = {
+
                     "before": before_damage,
+
                     "after": after_damage,
+
                     "new_damage": new_damage,
+
+                    "before_image": uploaded[before_key],
+
+                    "after_image": uploaded[after_key],
+
+                    "before_annotated":
+                        uploaded[before_key].replace(
+                            ".jpg",
+                            "_annotated.jpg"
+                        ),
+
+                    "after_annotated":
+                        uploaded[after_key].replace(
+                            ".jpg",
+                            "_annotated.jpg"
+                        )
                 }
 
             # ----------------------------

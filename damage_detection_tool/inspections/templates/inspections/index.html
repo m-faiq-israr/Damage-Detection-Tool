@@ -143,58 +143,144 @@
 
     <h3>Inspection Results</h3>
 
-    {% for part in parts %}
+   <hr class="my-5">
 
-    <div class="card my-4">
+<h3 class="mb-4">Inspection Results</h3>
 
-        <div class="card-header text-capitalize">
-            {{ part }}
-        </div>
+{% if inspection_results %}
 
-        <div class="card-body">
+{% for part, result in inspection_results.items %}
 
-            <div class="row">
+<div class="card mb-4 shadow-sm">
 
-                <div class="col-md-6">
+    <div class="card-header text-capitalize fw-bold">
+        {{ part }}
+    </div>
 
-                    <h6>Before</h6>
+    <div class="card-body">
 
-                    {% if uploaded.before|default:'' %}
-                    {% endif %}
+        <div class="row">
 
-                    {% with key="before_"|add:part %}
-                        {% if uploaded|get_item:key %}
-                            <img src="{{ uploaded|get_item:key }}"
-                                 class="img-fluid border">
-                        {% else %}
-                            <p>No image</p>
-                        {% endif %}
-                    {% endwith %}
+            <!-- BEFORE -->
 
-                </div>
+            <div class="col-md-6 text-center">
 
-                <div class="col-md-6">
+                <h5 class="mb-3">
+                    Before
+                </h5>
 
-                    <h6>After</h6>
+                {% if result.before_annotated %}
 
-                    {% with key="after_"|add:part %}
-                        {% if uploaded|get_item:key %}
-                            <img src="{{ uploaded|get_item:key }}"
-                                 class="img-fluid border">
-                        {% else %}
-                            <p>No image</p>
-                        {% endif %}
-                    {% endwith %}
+                    <img
+                        src="{{ result.before_annotated }}"
+                        class="img-fluid border rounded shadow-sm"
+                    >
 
-                </div>
+                {% else %}
+
+                    <p class="text-muted">
+                        No image available
+                    </p>
+
+                {% endif %}
+
+            </div>
+
+            <!-- AFTER -->
+
+            <div class="col-md-6 text-center">
+
+                <h5 class="mb-3">
+                    After
+                </h5>
+
+                {% if result.after_annotated %}
+
+                    <img
+                        src="{{ result.after_annotated }}"
+                        class="img-fluid border rounded shadow-sm"
+                    >
+
+                {% else %}
+
+                    <p class="text-muted">
+                        No image available
+                    </p>
+
+                {% endif %}
 
             </div>
 
         </div>
 
+        <hr>
+
+        <h5>New Damage Detected</h5>
+
+        {% if result.new_damage %}
+
+            <table class="table table-bordered">
+
+                <thead>
+
+                    <tr>
+
+                        <th>Damage Type</th>
+                        <th>Confidence</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody>
+
+                {% for damage in result.new_damage %}
+
+                    <tr>
+
+                        <td>{{ damage.type }}</td>
+
+                        <td>
+
+                            {{ damage.confidence|floatformat:2 }}
+
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        {% else %}
+
+            <div class="alert alert-success">
+
+                No new damage detected.
+
+            </div>
+
+        {% endif %}
+
     </div>
 
-    {% endfor %}
+</div>
+
+{% endfor %}
+
+{% else %}
+
+<div class="alert alert-info">
+
+    Upload images and click
+    <strong>Inspect Vehicle</strong>
+    to see the results.
+
+</div>
+
+{% endif %}
 
     <div class="card">
 

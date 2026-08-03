@@ -1,36 +1,32 @@
 from ultralytics import YOLO
 from pathlib import Path
+import cv2
 
 MODEL_PATH = Path(__file__).parent / "models" / "car_damage_yolo11.pt"
 
 model = YOLO(str(MODEL_PATH))
 
 
-def detect_damage(image_path):
+def detect_damage(image_path, output_path=None):
     """
-    Returns a list of detections:
-    [
-        {
-            "type": "scratch",
-            "confidence": 0.91,
-            "bbox": [x1,y1,x2,y2]
-        }
-    ]
+    Returns:
+        detections,
+        annotated_image_path
     """
 
-    results = model.predict(
-        source=image_path,
+    results = model(
+        image_path,
         conf=0.35,
         verbose=False
     )
 
+    result = results[0] # type: ignore
+
     detections = []
 
-    for result in results:
+    if result.boxes is not None: # type: ignore
 
-        boxes = result.boxes # type: ignore
-
-        for box in boxes: # type: ignore
+        for box in result.boxes: # type: ignore
 
             cls = int(box.cls.item())
 
@@ -39,13 +35,19 @@ def detect_damage(image_path):
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
 
             detections.append({
-
                 "type": model.names[cls],
-
                 "confidence": confidence,
-
                 "bbox": [x1, y1, x2, y2]
-
             })
 
-    return detections
+    annotated_path = None
+
+    if output_path:
+
+        annotated = result.plot() # type: ignore
+
+        cv2.imwrite(output_path, annotated)
+
+        annotated_path = output_path
+
+    return detections, annotated_path
