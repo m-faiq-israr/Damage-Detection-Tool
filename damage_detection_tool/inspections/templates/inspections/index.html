@@ -139,9 +139,6 @@
 
     </form>
 
-    <hr class="my-5">
-
-    <h3>Inspection Results</h3>
 
    <hr class="my-5">
 
@@ -282,27 +279,20 @@
 
 {% endif %}
 
-    <div class="card">
+{% if inspection_results %}
 
-        <div class="card-header">
-            JSON Report
-        </div>
+<div class="text-center mt-5">
 
-        <div class="card-body">
+    <a
+        href="{% url 'download_report' %}"
+        class="btn btn-success btn-lg"
+    >
+        📄 Download Inspection Report (PDF)
+    </a>
 
-<pre>
-{% if json_report %}
-{{ json_report }}
-{% else %}
-{
-    "status": "Pending AI Comparison"
-}
+</div>
+
 {% endif %}
-</pre>
-
-        </div>
-
-    </div>
 
 </div>
 

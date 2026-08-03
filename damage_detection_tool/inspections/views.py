@@ -8,15 +8,26 @@ from .ai.quality_check import check_image_quality
 from .ai.detector import detect_damage
 from .ai.compare import compare_damage
 from .ai.report import generate_report
+from .pdf_report import generate_pdf
 
+
+def download_report(request):
+
+    inspection_results = request.session.get(
+        "inspection_results",
+        {}
+    )
+
+    return generate_pdf(
+        inspection_results
+    )
 
 PARTS = [
     "front",
     "rear",
     "left",
     "right",
-    "bonnet",
-    "trunk",
+    "roof",
 ]
 
 
@@ -124,28 +135,17 @@ def index(request):
                 )
 
                 inspection_results[part] = {
-
                     "before": before_damage,
-
                     "after": after_damage,
-
                     "new_damage": new_damage,
 
-                    "before_image": uploaded[before_key],
+                    # Used in HTML
+                    "before_annotated": fs.url(Path(before_output).name),
+                    "after_annotated": fs.url(Path(after_output).name),
 
-                    "after_image": uploaded[after_key],
-
-                    "before_annotated":
-                        uploaded[before_key].replace(
-                            ".jpg",
-                            "_annotated.jpg"
-                        ),
-
-                    "after_annotated":
-                        uploaded[after_key].replace(
-                            ".jpg",
-                            "_annotated.jpg"
-                        )
+                    # Used for PDF generation
+                    "before_annotated_path": before_output,
+                    "after_annotated_path": after_output,
                 }
 
             # ----------------------------
@@ -155,6 +155,8 @@ def index(request):
             json_report = generate_report(
                 inspection_results
             )
+
+            request.session["inspection_results"] = inspection_results
 
     return render(
         request,
