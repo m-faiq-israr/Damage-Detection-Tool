@@ -13,21 +13,25 @@ from .pdf_report import generate_pdf
 
 def download_report(request):
 
-    inspection_results = request.session.get(
-        "inspection_results",
-        {}
-    )
+    inspection_results = request.session.get("inspection_results", {})
 
-    return generate_pdf(
-        inspection_results
-    )
+    return generate_pdf(inspection_results)
+
 
 PARTS = [
     "front",
     "rear",
     "left",
     "right",
-    "roof",
+    "front_right",
+    "front_left",
+    "rear_right",
+    "rear_left",
+    "rim_front_right",
+    "rim_front_left",
+    "rim_rear_right",
+    "rim_rear_left",
+    "windshield",
 ]
 
 
@@ -58,10 +62,9 @@ def index(request):
 
                     if not result["passed"]:
 
-                        quality_errors.append({
-                            "field": field,
-                            "errors": result["errors"]
-                        })
+                        quality_errors.append(
+                            {"field": field, "errors": result["errors"]}
+                        )
 
         # ----------------------------
         # Step 2: Save Images
@@ -87,9 +90,7 @@ def index(request):
 
                         uploaded[field] = fs.url(filename)
 
-                        saved_files[field] = Path(
-                            settings.MEDIA_ROOT
-                        ) / filename
+                        saved_files[field] = Path(settings.MEDIA_ROOT) / filename
 
             # ----------------------------
             # Step 3: YOLO Detection
@@ -100,49 +101,35 @@ def index(request):
                 before_key = f"before_{part}"
                 after_key = f"after_{part}"
 
-                if (
-                    before_key not in saved_files
-                    or after_key not in saved_files
-                ):
+                if before_key not in saved_files or after_key not in saved_files:
                     continue
 
                 before_path = str(saved_files[before_key])
                 after_path = str(saved_files[after_key])
 
                 before_output = str(saved_files[before_key]).replace(
-                    ".jpg",
-                    "_annotated.jpg"
+                    ".jpg", "_annotated.jpg"
                 )
 
                 after_output = str(saved_files[after_key]).replace(
-                    ".jpg",
-                    "_annotated.jpg"
+                    ".jpg", "_annotated.jpg"
                 )
 
                 before_damage, before_annotated = detect_damage(
-                    before_path,
-                    before_output
+                    before_path, before_output
                 )
 
-                after_damage, after_annotated = detect_damage(
-                    after_path,
-                    after_output
-                )
+                after_damage, after_annotated = detect_damage(after_path, after_output)
 
-                new_damage = compare_damage(
-                    before_damage,
-                    after_damage
-                )
+                new_damage = compare_damage(before_damage, after_damage)
 
                 inspection_results[part] = {
                     "before": before_damage,
                     "after": after_damage,
                     "new_damage": new_damage,
-
                     # Used in HTML
                     "before_annotated": fs.url(Path(before_output).name),
                     "after_annotated": fs.url(Path(after_output).name),
-
                     # Used for PDF generation
                     "before_annotated_path": before_output,
                     "after_annotated_path": after_output,
@@ -152,9 +139,7 @@ def index(request):
             # Step 4: JSON Report
             # ----------------------------
 
-            json_report = generate_report(
-                inspection_results
-            )
+            json_report = generate_report(inspection_results)
 
             request.session["inspection_results"] = inspection_results
 

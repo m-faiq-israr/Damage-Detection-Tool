@@ -28,8 +28,12 @@ def _register_poppins_font():
         return font_name, bold_font_name
 
     candidates = [
-        os.path.expanduser(r"~\AppData\Local\Microsoft\Windows\Fonts\Poppins-Regular.ttf"),
-        os.path.expanduser(r"~\AppData\Local\Microsoft\Windows\Fonts\Poppins-Medium.ttf"),
+        os.path.expanduser(
+            r"~\AppData\Local\Microsoft\Windows\Fonts\Poppins-Regular.ttf"
+        ),
+        os.path.expanduser(
+            r"~\AppData\Local\Microsoft\Windows\Fonts\Poppins-Medium.ttf"
+        ),
         r"C:\Windows\Fonts\Poppins-Regular.ttf",
         r"C:\Windows\Fonts\Poppins-Medium.ttf",
     ]
@@ -149,19 +153,26 @@ def generate_pdf(inspection_results):
     summary_table = Table(summary_data, colWidths=[3.4 * inch, 1.8 * inch])
 
     summary_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F4C81")),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("GRID", (0, 0), (-1, -1), 0.7, colors.HexColor("#D1D5DB")),
-            ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F9FAFB")),
-            ("FONTNAME", (0, 1), (-1, -1), font_name),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
-            ("TOPPADDING", (0, 0), (-1, -1), 8),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F9FAFB")]),
-        ])
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F4C81")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
+                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("GRID", (0, 0), (-1, -1), 0.7, colors.HexColor("#D1D5DB")),
+                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F9FAFB")),
+                ("FONTNAME", (0, 1), (-1, -1), font_name),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 8),
+                (
+                    "ROWBACKGROUNDS",
+                    (0, 1),
+                    (-1, -1),
+                    [colors.white, colors.HexColor("#F9FAFB")],
+                ),
+            ]
+        )
     )
 
     story.append(summary_table)
@@ -173,7 +184,7 @@ def generate_pdf(inspection_results):
 
     for part, result in inspection_results.items():
 
-        story.append(Paragraph(part.upper(), section_style))
+        story.append(Paragraph(part.replace("_", " ").title(), section_style))
 
         image_row = []
 
@@ -203,16 +214,18 @@ def generate_pdf(inspection_results):
         )
 
         image_table.setStyle(
-            TableStyle([
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-                ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#D1D5DB")),
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FCFDFF")),
-            ])
+            TableStyle(
+                [
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+                    ("BOX", (0, 0), (-1, -1), 0.7, colors.HexColor("#D1D5DB")),
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FCFDFF")),
+                ]
+            )
         )
 
         story.append(image_table)
@@ -222,10 +235,12 @@ def generate_pdf(inspection_results):
             damage_data = [["Damage", "Confidence"]]
 
             for damage in result["new_damage"]:
-                damage_data.append([
-                    damage["type"],
-                    f"{damage['confidence']:.2f}",
-                ])
+                damage_data.append(
+                    [
+                        damage["type"],
+                        f"{damage['confidence']:.2f}",
+                    ]
+                )
         else:
             damage_data = [
                 ["Status"],
@@ -238,17 +253,19 @@ def generate_pdf(inspection_results):
         )
 
         damage_table.setStyle(
-            TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F4C81")),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
-                ("GRID", (0, 0), (-1, -1), 0.7, colors.HexColor("#D1D5DB")),
-                ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F9FAFB")),
-                ("FONTNAME", (0, 1), (-1, -1), font_name),
-                ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-                ("TOPPADDING", (0, 0), (-1, -1), 7),
-            ])
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F4C81")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), bold_font_name),
+                    ("GRID", (0, 0), (-1, -1), 0.7, colors.HexColor("#D1D5DB")),
+                    ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#F9FAFB")),
+                    ("FONTNAME", (0, 1), (-1, -1), font_name),
+                    ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                    ("TOPPADDING", (0, 0), (-1, -1), 7),
+                ]
+            )
         )
 
         story.append(damage_table)
@@ -269,8 +286,6 @@ def generate_pdf(inspection_results):
         content_type="application/pdf",
     )
 
-    response["Content-Disposition"] = (
-        'attachment; filename="inspection_report.pdf"'
-    )
+    response["Content-Disposition"] = 'attachment; filename="inspection_report.pdf"'
 
     return response
