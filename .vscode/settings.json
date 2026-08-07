@@ -1,3 +1,4 @@
 {
-    "suitecloud.developerAssistant.disableWelcomeNotification": true
+    "suitecloud.developerAssistant.disableWelcomeNotification": true,
+    "python-envs.defaultEnvManager": "ms-python.python:system"
 }

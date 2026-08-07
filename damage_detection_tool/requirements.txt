@@ -1,0 +1,11 @@
+Django
+opencv-python
+ultralytics
+torch 
+torchvision 
+torchaudio
+transformers
+huggingface-hub
+pillow
+numpy
+reportlab
