@@ -10,7 +10,12 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
+import os
+from dotenv import load_dotenv
+
 from pathlib import Path
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -121,12 +126,12 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-#########################################################
-# Roboflow Configuration
-#########################################################
+ROBOFLOW_API_KEY = os.getenv("ROBOFLOW_API_KEY")
 
-ROBOFLOW_API_KEY = "YVLex6Nkk4AFqu8uh2p7"
+ROBOFLOW_API_URL = os.getenv("ROBOFLOW_API_URL", "https://serverless.roboflow.com")
 
-ROBOFLOW_MODEL_ID = "wheels-yma76/1"
+ROBOFLOW_MODEL_ID = os.getenv("ROBOFLOW_MODEL_ID")
 
-ROBOFLOW_API_URL = "https://serverless.roboflow.com"
+ROBOFLOW_WORKSPACE = os.getenv("ROBOFLOW_WORKSPACE")
+
+ROBOFLOW_WORKFLOW_ID = os.getenv("ROBOFLOW_WORKFLOW_ID")
