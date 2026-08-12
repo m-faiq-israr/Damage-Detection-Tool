@@ -1,0 +1,281 @@
+{% load custom_tags %}
+
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+    <title>Single Image Damage Detection</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+</head>
+
+
+<body class="bg-light">
+
+
+<div class="container py-5">
+
+
+    <h2 class="mb-4">
+        Single Image Damage Detection
+    </h2>
+
+
+    <p class="text-muted">
+        Upload one image for each vehicle section.
+        The system will detect existing damages in each image.
+    </p>
+
+
+    <!-- ================================================= -->
+    <!-- QUALITY ERRORS -->
+    <!-- ================================================= -->
+
+    {% if quality_errors %}
+
+    <div class="alert alert-danger">
+
+        <h5>
+            Some images failed the quality check.
+        </h5>
+
+        <ul>
+
+            {% for item in quality_errors %}
+
+            <li>
+
+                <strong>
+                    {{ item.field }}
+                </strong>
+
+                <ul>
+
+                    {% for error in item.errors %}
+
+                    <li>
+                        {{ error }}
+                    </li>
+
+                    {% endfor %}
+
+                </ul>
+
+            </li>
+
+            {% endfor %}
+
+        </ul>
+
+    </div>
+
+    {% endif %}
+
+
+    <!-- ================================================= -->
+    <!-- UPLOAD FORM -->
+    <!-- ================================================= -->
+
+    <form
+        method="POST"
+        enctype="multipart/form-data"
+    >
+
+        {% csrf_token %}
+
+
+        <div class="row">
+
+            {% for part in single_parts %}
+
+            <div class="col-md-6 mb-3">
+
+                <div class="card">
+
+                    <div class="card-body">
+
+                        <label class="form-label text-capitalize fw-bold">
+
+                            {{ part|replace_underscore }}
+
+                        </label>
+
+
+                        <input
+                            type="file"
+                            class="form-control"
+                            name="single_{{ part }}"
+                            accept="image/*"
+                        >
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+
+        <button
+            type="submit"
+            class="btn btn-primary btn-lg mt-3"
+        >
+
+            Detect Damages
+
+        </button>
+
+    </form>
+
+
+    <!-- ================================================= -->
+    <!-- RESULTS -->
+    <!-- ================================================= -->
+
+    {% if single_results %}
+
+    <hr class="my-5">
+
+
+    <h3 class="mb-4">
+        Damage Detection Results
+    </h3>
+
+
+    {% for part, result in single_results.items %}
+
+    <div class="card mb-4">
+
+
+        <div class="card-header">
+
+            <strong>
+                {{ part|replace_underscore }}
+            </strong>
+
+        </div>
+
+
+        <div class="card-body">
+
+
+            <!-- IMAGE -->
+
+            {% if result.annotated %}
+
+            <div class="text-center mb-4">
+
+                <img
+                    src="{{ result.annotated }}"
+                    class="img-fluid border rounded"
+                    style="max-height: 500px;"
+                >
+
+            </div>
+
+            {% endif %}
+
+
+            <!-- DAMAGES -->
+
+            <h5>
+                Detected Damages
+            </h5>
+
+            {% if result.damage %}
+
+                <div class="table-responsive">
+
+                    <table class="table table-bordered">
+
+                        <thead class="table-dark">
+
+                            <tr>
+                                <th>Damage</th>
+                                <th>Confidence</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {% for damage in result.damage %}
+
+                            <tr>
+
+                                <td>
+
+                                    {% if damage.damage_type %}
+
+                                        {{ damage.damage_type }}
+
+                                    {% else %}
+
+                                        {{ damage.type }}
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td>
+                                    {{ damage.confidence|floatformat:2 }}
+                                </td>
+
+                            </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            {% else %}
+
+                <div class="alert alert-success mb-0">
+                    No damage detected.
+                </div>
+
+            {% endif %}
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+
+    <!-- ================================================= -->
+    <!-- DOWNLOAD REPORT -->
+    <!-- ================================================= -->
+
+    <div class="text-center mt-4 mb-5">
+
+        <a
+            href="{% url 'download_report' %}?type=single"
+            class="btn btn-success btn-lg"
+        >
+            Download Inspection Report
+        </a>
+
+    </div>
+
+
+{% endif %}
+
+</div>
+
+
+</body>
+
+</html>

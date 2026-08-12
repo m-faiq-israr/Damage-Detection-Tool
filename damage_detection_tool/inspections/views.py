@@ -12,6 +12,7 @@ from .ai.compare import compare_damage
 from .ai.report import generate_report
 from .pdf_report import generate_pdf
 from .ai.interior_detector import detect_interior_damage
+from .ai.single_detector import detect_single_image
 
 # =========================================================
 # EXTERIOR PARTS
@@ -62,6 +63,31 @@ INTERIOR_PARTS = [
     "door_rear_right",
 ]
 
+SINGLE_PARTS = [
+    "front",
+    "rear",
+    "left",
+    "right",
+    "front_right",
+    "front_left",
+    "rear_right",
+    "rear_left",
+    "rim_front_right",
+    "rim_front_left",
+    "rim_rear_right",
+    "rim_rear_left",
+    "windshield",
+    "front_panel",
+    "enter_driver",
+    "enter_co_driver",
+    "rear_row_seats",
+    "trunk",
+    "front_left_door",
+    "front_right_door",
+    "rear_left_door",
+    "rear_right_door",
+]
+
 
 # =========================================================
 # DOWNLOAD PDF REPORT
@@ -70,9 +96,25 @@ INTERIOR_PARTS = [
 
 def download_report(request):
 
+    report_type = request.GET.get("type", "comparison")
+
+    # =====================================================
+    # SINGLE INSPECTION REPORT
+    # =====================================================
+
+    if report_type == "single":
+
+        single_results = request.session.get("single_results", {})
+
+        return generate_pdf(single_results, report_type="single")
+
+    # =====================================================
+    # COMPARISON REPORT
+    # =====================================================
+
     inspection_results = request.session.get("inspection_results", {})
 
-    return generate_pdf(inspection_results)
+    return generate_pdf(inspection_results, report_type="comparison")
 
 
 # =========================================================
@@ -390,6 +432,118 @@ def index(request):
             # Results
             "quality_errors": quality_errors,
             "inspection_results": inspection_results,
+            "json_report": json_report,
+        },
+    )
+
+
+def single_inspection(request):
+
+    uploaded = {}
+    quality_errors = []
+    single_results = {}
+    json_report = ""
+
+    if request.method == "POST":
+
+        # =====================================================
+        # STEP 1: QUALITY CHECK
+        # =====================================================
+
+        for part in SINGLE_PARTS:
+
+            field = f"single_{part}"
+
+            if field not in request.FILES:
+                continue
+
+            file = request.FILES[field]
+
+            result = check_image_quality(file)
+
+            if not result["passed"]:
+
+                quality_errors.append(
+                    {
+                        "field": field,
+                        "errors": result["errors"],
+                    }
+                )
+
+        # =====================================================
+        # STEP 2: SAVE + DETECT
+        # =====================================================
+
+        if not quality_errors:
+
+            fs = FileSystemStorage()
+
+            for part in SINGLE_PARTS:
+
+                field = f"single_{part}"
+
+                if field not in request.FILES:
+                    continue
+
+                file = request.FILES[field]
+
+                filename = fs.save(file.name, file)
+
+                uploaded[field] = fs.url(filename)
+
+                image_path = Path(settings.MEDIA_ROOT) / filename
+
+                output_path = str(
+                    image_path.with_name(image_path.stem + "_single_annotated.jpg")
+                )
+
+                # =================================================
+                # DETECT DAMAGE
+                # =================================================
+
+                result = detect_single_image(
+                    part,
+                    str(image_path),
+                    output_path,
+                )
+
+                annotated_url = None
+
+                if result["annotated_path"]:
+
+                    annotated_url = fs.url(Path(result["annotated_path"]).name)
+
+                single_results[part] = {
+                    "damage": result["damage"],
+                    "annotated": annotated_url,
+                    "annotated_path": result["annotated_path"],
+                    "pipeline": result["pipeline"],
+                }
+
+            # =====================================================
+            # STEP 3: GENERATE JSON REPORT
+            # =====================================================
+
+            json_report = generate_report(single_results)
+
+            # =====================================================
+            # STEP 4: SAVE TO SESSION
+            # =====================================================
+
+            request.session["single_results"] = single_results
+
+            request.session["single_json_report"] = json_report
+
+            request.session.modified = True
+
+    return render(
+        request,
+        "inspections/single_inspection.html",
+        {
+            "single_parts": SINGLE_PARTS,
+            "uploaded": uploaded,
+            "single_results": single_results,
+            "quality_errors": quality_errors,
             "json_report": json_report,
         },
     )

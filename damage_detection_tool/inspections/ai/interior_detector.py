@@ -1,5 +1,7 @@
+import base64
 from pathlib import Path
 
+import cv2
 
 from django.conf import settings
 from inference_sdk import InferenceHTTPClient
@@ -9,11 +11,13 @@ CLIENT = InferenceHTTPClient(
     api_key=settings.ROBOFLOW_API_KEY,
 )
 
+
 WORKSPACE_NAME = "m-faiq-israr"
 
 WORKFLOW_ID = "general-segmentation-api-11"
 
-INTERIOR_CLASSES = "Hole, Broken, Stain, Tear"
+
+INTERIOR_CLASSES = "Hole, " "Broken, " "Stain, " "Tear"
 
 
 def detect_interior_damage(
@@ -21,70 +25,72 @@ def detect_interior_damage(
     output_path=None,
 ):
 
-    image_path = str(image_path)
+    print()
+    print("=" * 60)
+    print("ROBOFLOW INTERIOR DAMAGE DETECTION")
+    print("=" * 60)
+
+    print(f"Image: {image_path}")
+
+    # =====================================================
+    # RUN WORKFLOW
+    # =====================================================
 
     result = CLIENT.run_workflow(
         workspace_name=WORKSPACE_NAME,
         workflow_id=WORKFLOW_ID,
-        images={"image": image_path},
+        images={"image": str(image_path)},
         parameters={"classes": INTERIOR_CLASSES},
         use_cache=True,
     )
 
     # =====================================================
-    # WORKFLOW RESULT
+    # GET RESULT
     # =====================================================
 
-    detections = []
+    if isinstance(result, list) and result:
 
-    if isinstance(result, list) and len(result) > 0:
         workflow_result = result[0]
 
     elif isinstance(result, dict):
+
         workflow_result = result
 
     else:
-        workflow_result = {}
 
-    # =====================================================
-    # FIND PREDICTIONS
-    # =====================================================
+        return []
 
-    predictions_data = workflow_result.get("predictions", {})
+    predictions_container = workflow_result.get("predictions", {})
 
-    predictions = []
+    if isinstance(predictions_container, dict):
 
-    if isinstance(predictions_data, dict):
+        predictions = predictions_container.get("predictions", [])
 
-        predictions = predictions_data.get("predictions", [])
+    else:
 
-    elif isinstance(predictions_data, list):
+        predictions = []
 
-        predictions = predictions_data
+    print(f"Detections: {len(predictions)}")
+
+    damage = []
 
     # =====================================================
     # PROCESS DETECTIONS
     # =====================================================
 
-    print(f"Detections: {len(predictions)}")
-
     for index, prediction in enumerate(predictions, start=1):
 
-        damage_class = prediction.get("class", "Unknown")
+        damage_type = prediction.get("class", "Unknown")
 
-        confidence = prediction.get("confidence", 0)
+        confidence = float(prediction.get("confidence", 0))
 
-        # -----------------------------------------------
-        # Bounding box
-        # -----------------------------------------------
+        x = float(prediction.get("x", 0))
 
-        x = prediction.get("x", 0)
+        y = float(prediction.get("y", 0))
 
-        y = prediction.get("y", 0)
+        width = float(prediction.get("width", 0))
 
-        width = prediction.get("width", 0)
-
-        height = prediction.get("height", 0)
+        height = float(prediction.get("height", 0))
 
         x1 = int(x - width / 2)
 
@@ -94,42 +100,77 @@ def detect_interior_damage(
 
         y2 = int(y + height / 2)
 
-        bbox = [x1, y1, x2, y2]
+        bbox = [
+            x1,
+            y1,
+            x2,
+            y2,
+        ]
 
-        # -----------------------------------------------
-        # Store detection
-        # -----------------------------------------------
+        damage.append(
+            {
+                "type": damage_type,
+                "confidence": confidence,
+                "bbox": bbox,
+            }
+        )
 
-        detection = {
-            "type": damage_class,
-            "confidence": float(confidence),
-            "bbox": bbox,
-        }
+        print()
+        print(f"Detection {index}")
 
-        detections.append(detection)
+        print(f"Class      : {damage_type}")
 
-    annotated_image = workflow_result.get("annotated_image")
+        print(f"Confidence : {confidence:.4f}")
 
-    if annotated_image:
+        print(f"Bounding Box: {bbox}")
 
-        try:
+    # =====================================================
+    # ANNOTATE ORIGINAL IMAGE
+    # =====================================================
 
-            import base64
+    image = cv2.imread(str(image_path))
 
-            if isinstance(annotated_image, str):
+    if image is None:
 
-                image_data = base64.b64decode(annotated_image)
+        return damage
 
-                if output_path:
+    for item in damage:
 
-                    Path(output_path).write_bytes(image_data)
+        x1, y1, x2, y2 = item["bbox"]
 
-                    print("Interior annotated image saved:")
+        label = f'{item["type"]} ' f'{item["confidence"]:.2f}'
 
-                    print(output_path)
+        cv2.rectangle(
+            image,
+            (x1, y1),
+            (x2, y2),
+            (0, 0, 255),
+            2,
+        )
 
-        except Exception as e:
+        cv2.putText(
+            image,
+            label,
+            (x1, max(y1 - 10, 20)),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 0, 255),
+            2,
+        )
 
-            print("Could not save annotated " f"interior image: {e}")
+    # =====================================================
+    # SAVE ANNOTATED IMAGE
+    # =====================================================
 
-    return detections
+    if output_path:
+
+        cv2.imwrite(str(output_path), image)
+
+        print()
+        print("Interior annotated image saved:")
+
+        print(output_path)
+
+    print("=" * 60)
+
+    return damage

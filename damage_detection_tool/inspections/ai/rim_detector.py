@@ -51,7 +51,7 @@ def detect_rim_damage(
         # Ignore Good Bolt
         # -----------------------------------------------------
 
-        if damage_class.lower() == "good bolt":
+        if damage_class.lower() in ["good bolt", "wrong bolt"]:
             continue
 
         # -----------------------------------------------------
