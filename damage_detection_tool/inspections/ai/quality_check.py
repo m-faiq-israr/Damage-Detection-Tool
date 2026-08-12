@@ -1,3 +1,5 @@
+from xml.parsers.expat import errors
+
 import cv2
 import numpy as np
 
@@ -21,10 +23,7 @@ def check_image_quality(file):
     file.seek(0)
 
     if image is None:
-        return {
-            "passed": False,
-            "errors": ["Invalid image file."]
-        }
+        return {"passed": False, "errors": ["Invalid image file."]}
 
     height, width = image.shape[:2]
 
@@ -51,11 +50,32 @@ def check_image_quality(file):
     if brightness < 50:
         errors.append("Image is too dark.")
 
-    if brightness > 220:
+    if brightness > 240:
         errors.append("Image is overexposed.")
 
+    # ---------- Contrast ----------
 
-    return {
-        "passed": len(errors) == 0,
-        "errors": errors
-    }
+    contrast = gray.std()
+    if contrast < 20:
+        errors.append("Image has too little contrast (flat/washed out).")
+
+    # ---------- Blank Image ----------
+
+    if gray.std() < 5:
+        errors.append("Image appears blank or the lens was obstructed.")
+
+    # ---------- Noise ----------
+
+    median = cv2.medianBlur(gray, 5)
+    noise_level = np.mean(cv2.absdiff(gray, median))
+    if noise_level > 15:
+        errors.append("Image is too noisy.")
+
+    # ---------- Edge Density ----------
+
+    edges = cv2.Canny(gray, 100, 200)
+    edge_density = np.mean(edges > 0)
+    if edge_density < 0.01:
+        errors.append("Image lacks sufficient detail/structure.")
+
+    return {"passed": len(errors) == 0, "errors": errors}
