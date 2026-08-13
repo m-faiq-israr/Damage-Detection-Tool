@@ -15,7 +15,6 @@ PART_CODES = {
     "rim_front_left": "A09",
     "rim_rear_right": "A10",
     "rim_rear_left": "A11",
-    "windshield": "A12",
     "front_panel": "AI1",
     "enter_driver": "AI2",
     "enter_co_driver": "AI3",
@@ -45,7 +44,6 @@ EXTERIOR_PARTS = {
     "rim_front_left",
     "rim_rear_right",
     "rim_rear_left",
-    "windshield",
 }
 
 
