@@ -19,6 +19,7 @@ from .pipeline import (
     PART_CODES,
     INTERIOR_PARTS,
 )
+from .auth import require_api_key
 
 # =========================================================
 # HELPERS
@@ -179,6 +180,11 @@ def build_comparison_response(
 @csrf_exempt
 @require_POST
 def single_inspection_api(request):
+
+    auth_error = require_api_key(request)
+
+    if auth_error:
+        return auth_error
 
     try:
 
@@ -428,9 +434,10 @@ def single_inspection_api(request):
 @require_POST
 def comparison_api(request):
 
-    # =====================================================
-    # PARSE JSON
-    # =====================================================
+    auth_error = require_api_key(request)
+
+    if auth_error:
+        return auth_error
 
     try:
 

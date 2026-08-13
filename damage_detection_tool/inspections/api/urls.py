@@ -7,12 +7,12 @@ from .views import (
 
 urlpatterns = [
     path(
-        "single/",
+        "walkaround/single/",
         single_inspection_api,
         name="single_inspection_api",
     ),
     path(
-        "compare/",
+        "walkaround/compare/",
         comparison_api,
         name="comparison_api",
     ),

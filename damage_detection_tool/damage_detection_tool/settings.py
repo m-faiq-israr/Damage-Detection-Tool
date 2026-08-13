@@ -145,3 +145,6 @@ SUPABASE_STORAGE_BUCKET = os.getenv(
     "SUPABASE_STORAGE_BUCKET",
     "inspection-artifacts",
 )
+
+
+AI_SERVICE_API_KEY = os.getenv("AI_SERVICE_API_KEY")
