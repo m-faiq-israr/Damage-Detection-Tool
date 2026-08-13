@@ -1,7 +1,10 @@
+import os
+import uuid
 from pathlib import Path
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
+from django.http import HttpResponse
 from django.shortcuts import render
 
 from .ai.quality_check import check_image_quality
@@ -13,6 +16,10 @@ from .ai.report import generate_report
 from .pdf_report import generate_pdf
 from .ai.interior_detector import detect_interior_damage
 from .ai.single_detector import detect_single_image
+from .storage import upload_file, get_file_url
+from django.core.files.base import ContentFile
+
+from .storage import upload_file, get_file_url
 
 # =========================================================
 # EXTERIOR PARTS
@@ -89,14 +96,81 @@ SINGLE_PARTS = [
 ]
 
 
-# =========================================================
-# DOWNLOAD PDF REPORT
-# =========================================================
+def generate_request_id():
+    return str(uuid.uuid4())
+
+
+def upload_annotated_image(
+    local_path,
+    part,
+    stage,
+    request_id,
+):
+    """
+    Upload an annotated image to Supabase
+    and return its signed URL.
+    """
+
+    if not local_path:
+        return None
+
+    local_path = Path(local_path)
+
+    if not local_path.exists():
+        print(f"Supabase upload skipped. File not found: {local_path}")
+        return None
+
+    storage_path = (
+        f"{request_id}/" f"analyzed-images/" f"{part}/" f"{stage}_{local_path.name}"
+    )
+
+    try:
+
+        upload_file(
+            local_path,
+            storage_path,
+            content_type="image/jpeg",
+        )
+
+        url = get_file_url(
+            storage_path,
+            expires_in=3600,
+        )
+
+        print("\n" + "=" * 60)
+        print("SUPABASE IMAGE UPLOAD")
+        print("=" * 60)
+        print(f"Part       : {part}")
+        print(f"Stage      : {stage}")
+        print(f"Storage    : {storage_path}")
+        print(f"URL        : {url}")
+        print("=" * 60)
+
+        return url
+
+    except Exception as e:
+
+        print("\n" + "=" * 60)
+        print("SUPABASE IMAGE UPLOAD FAILED")
+        print("=" * 60)
+        print(f"File  : {local_path}")
+        print(f"Error : {e}")
+        print("=" * 60)
+
+        return None
 
 
 def download_report(request):
 
     report_type = request.GET.get("type", "comparison")
+
+    request_id = request.session.get("request_id")
+
+    if not request_id:
+        return HttpResponse(
+            "Request ID not found. Please run an inspection first.",
+            status=400,
+        )
 
     # =====================================================
     # SINGLE INSPECTION REPORT
@@ -106,15 +180,110 @@ def download_report(request):
 
         single_results = request.session.get("single_results", {})
 
-        return generate_pdf(single_results, report_type="single")
+        pdf_response = generate_pdf(single_results, report_type="single")
+
+        storage_path = f"{request_id}/" f"report/" f"walkaround-report.pdf"
 
     # =====================================================
     # COMPARISON REPORT
     # =====================================================
 
-    inspection_results = request.session.get("inspection_results", {})
+    else:
 
-    return generate_pdf(inspection_results, report_type="comparison")
+        inspection_results = request.session.get("inspection_results", {})
+
+        pdf_response = generate_pdf(inspection_results, report_type="comparison")
+
+        storage_path = f"{request_id}/" f"report/" f"walkaround-report.pdf"
+    # =====================================================
+    # UPLOAD PDF TO SUPABASE
+    # =====================================================
+
+    try:
+
+        # Get PDF bytes from HttpResponse
+        pdf_bytes = pdf_response.content
+
+        # Temporary local file
+        temp_dir = Path(settings.MEDIA_ROOT) / "reports"
+
+        temp_dir.mkdir(parents=True, exist_ok=True)
+
+        if report_type == "single":
+
+            local_pdf_path = (
+                temp_dir / f"single_damage_report_" f"{request.session.session_key}.pdf"
+            )
+
+        else:
+
+            local_pdf_path = (
+                temp_dir / f"car_damage_comparison_report_"
+                f"{request.session.session_key}.pdf"
+            )
+
+        # Save PDF locally
+        with open(local_pdf_path, "wb") as pdf_file:
+
+            pdf_file.write(pdf_bytes)
+
+        # Upload to Supabase
+        upload_file(
+            local_pdf_path,
+            storage_path,
+            content_type="application/pdf",
+        )
+
+        # Generate signed URL
+        pdf_url = get_file_url(
+            storage_path,
+            expires_in=3600,
+        )
+
+        # =================================================
+        # CONSOLE LOG
+        # =================================================
+
+        print()
+        print("=" * 60)
+
+        if report_type == "single":
+
+            print("SUPABASE SINGLE PDF UPLOAD SUCCESS")
+
+        else:
+
+            print("SUPABASE COMPARISON PDF UPLOAD SUCCESS")
+
+        print("=" * 60)
+
+        print("Storage Path:")
+        print(storage_path)
+
+        print()
+        print("PDF URL:")
+        print(pdf_url)
+
+        print("=" * 60)
+        print()
+
+    except Exception as e:
+
+        print()
+        print("=" * 60)
+        print("SUPABASE PDF UPLOAD FAILED")
+        print("=" * 60)
+
+        print("Error:", str(e))
+
+        print("=" * 60)
+        print()
+
+    # =====================================================
+    # RETURN PDF TO BROWSER
+    # =====================================================
+
+    return pdf_response
 
 
 # =========================================================
@@ -123,6 +292,16 @@ def download_report(request):
 
 
 def index(request):
+
+    if request.method == "POST":
+
+        request_id = str(uuid.uuid4())
+
+        request.session["request_id"] = request_id
+
+    else:
+
+        request_id = request.session.get("request_id", str(uuid.uuid4()))
 
     uploaded = {}
     quality_errors = []
@@ -291,6 +470,20 @@ def index(request):
                         after_rim["y_offset"],
                     )
 
+                    before_supabase_url = upload_annotated_image(
+                        before_output,
+                        part,
+                        "before",
+                        request_id=request_id,
+                    )
+
+                    after_supabase_url = upload_annotated_image(
+                        after_output,
+                        part,
+                        "after",
+                        request_id=request_id,
+                    )
+
                     # -----------------------------------------
                     # COMPARE
                     # -----------------------------------------
@@ -301,8 +494,8 @@ def index(request):
                         "before": before_damage,
                         "after": after_damage,
                         "new_damage": new_damage,
-                        "before_annotated": fs.url(Path(before_output).name),
-                        "after_annotated": fs.url(Path(after_output).name),
+                        "before_annotated": before_supabase_url,
+                        "after_annotated": after_supabase_url,
                         "before_annotated_path": before_output,
                         "after_annotated_path": after_output,
                     }
@@ -341,6 +534,20 @@ def index(request):
                         after_path, after_output
                     )
 
+                    before_supabase_url = upload_annotated_image(
+                        before_annotated,
+                        part,
+                        "before",
+                        request_id=request_id,
+                    )
+
+                    after_supabase_url = upload_annotated_image(
+                        after_annotated,
+                        part,
+                        "after",
+                        request_id=request_id,
+                    )
+
                     # -----------------------------------------
                     # COMPARE
                     # -----------------------------------------
@@ -351,8 +558,8 @@ def index(request):
                         "before": before_damage,
                         "after": after_damage,
                         "new_damage": new_damage,
-                        "before_annotated": fs.url(Path(before_output).name),
-                        "after_annotated": fs.url(Path(after_output).name),
+                        "before_annotated": before_supabase_url,
+                        "after_annotated": after_supabase_url,
                         "before_annotated_path": before_output,
                         "after_annotated_path": after_output,
                     }
@@ -398,14 +605,28 @@ def index(request):
 
                 after_damage = detect_interior_damage(after_path, after_output)
 
+                before_supabase_url = upload_annotated_image(
+                    before_output,
+                    part,
+                    "before",
+                    request_id=request_id,
+                )
+
+                after_supabase_url = upload_annotated_image(
+                    after_output,
+                    part,
+                    "after",
+                    request_id=request_id,
+                )
+
                 new_damage = compare_damage(before_damage, after_damage)
 
                 inspection_results[part] = {
                     "before": before_damage,
                     "after": after_damage,
                     "new_damage": new_damage,
-                    "before_annotated": fs.url(Path(before_output).name),
-                    "after_annotated": fs.url(Path(after_output).name),
+                    "before_annotated": before_supabase_url,
+                    "after_annotated": after_supabase_url,
                     "before_annotated_path": before_output,
                     "after_annotated_path": after_output,
                     "interior": True,
@@ -438,6 +659,16 @@ def index(request):
 
 
 def single_inspection(request):
+
+    if request.method == "POST":
+
+        request_id = str(uuid.uuid4())
+
+        request.session["request_id"] = request_id
+
+    else:
+
+        request_id = request.session.get("request_id", str(uuid.uuid4()))
 
     uploaded = {}
     quality_errors = []
@@ -507,6 +738,52 @@ def single_inspection(request):
                     output_path,
                 )
 
+                # =====================================================
+                # UPLOAD ANNOTATED IMAGE TO SUPABASE
+                # =====================================================
+
+                supabase_annotated_url = None
+
+                if result["annotated_path"]:
+
+                    try:
+
+                        annotated_path = Path(result["annotated_path"])
+
+                        storage_path = (
+                            f"{request_id}/"
+                            f"analyzed_images/"
+                            f"{part}/"
+                            f"{filename}"
+                        )
+
+                        upload_file(
+                            annotated_path,
+                            storage_path,
+                            content_type="image/jpeg",
+                        )
+
+                        supabase_annotated_url = get_file_url(storage_path)
+
+                        print()
+                        print("=" * 60)
+                        print("SUPABASE SINGLE INSPECTION IMAGE UPLOAD")
+                        print("=" * 60)
+                        print(f"Part       : {part}")
+                        print(f"Storage    : {storage_path}")
+                        print(f"URL        : {supabase_annotated_url}")
+                        print("=" * 60)
+
+                    except Exception as e:
+
+                        print()
+                        print("=" * 60)
+                        print("SUPABASE SINGLE INSPECTION IMAGE UPLOAD FAILED")
+                        print("=" * 60)
+                        print(f"File  : {result['annotated_path']}")
+                        print(f"Error : {e}")
+                        print("=" * 60)
+
                 annotated_url = None
 
                 if result["annotated_path"]:
@@ -517,6 +794,7 @@ def single_inspection(request):
                     "damage": result["damage"],
                     "annotated": annotated_url,
                     "annotated_path": result["annotated_path"],
+                    "supabase_annotated_url": supabase_annotated_url,
                     "pipeline": result["pipeline"],
                 }
 

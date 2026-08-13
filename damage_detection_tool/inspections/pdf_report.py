@@ -14,11 +14,14 @@ from reportlab.platypus import (
     TableStyle,
     Image,
 )
+from pathlib import Path
+from django.conf import settings
 
 
 def generate_pdf(
     inspection_results,
     report_type="comparison",
+    save_path=None,
 ):
 
     buffer = BytesIO()
@@ -567,6 +570,19 @@ def generate_pdf(
     # =====================================================
 
     doc.build(story)
+
+    if save_path:
+
+        save_path = Path(save_path)
+
+        save_path.parent.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        with open(save_path, "wb") as pdf_file:
+
+            pdf_file.write(buffer.getvalue())
 
     buffer.seek(0)
 
