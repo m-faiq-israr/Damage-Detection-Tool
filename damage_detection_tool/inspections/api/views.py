@@ -1,3 +1,4 @@
+import shutil
 from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
@@ -331,6 +332,29 @@ def single_inspection_api(request):
     print("Report URL:", report_url)
     print("=" * 60)
 
+    try:
+
+        if pdf_path.exists():
+
+            pdf_path.unlink()
+
+            print()
+            print("=" * 60)
+            print("LOCAL PDF DELETED")
+            print("=" * 60)
+            print("Deleted:", pdf_path)
+            print("=" * 60)
+
+    except Exception as e:
+
+        print()
+        print("=" * 60)
+        print("LOCAL PDF DELETE FAILED")
+        print("=" * 60)
+        print("File:", pdf_path)
+        print("Error:", str(e))
+        print("=" * 60)
+
     # =====================================================
     # BUILD RESPONSE
     # =====================================================
@@ -345,6 +369,34 @@ def single_inspection_api(request):
         results=results,
         report_url=report_url,
     )
+
+    # =====================================================
+    # CLEAN TEMPORARY LOCAL FILES
+    # =====================================================
+
+    job_dir = Path(settings.MEDIA_ROOT) / "api" / str(request_id)
+
+    try:
+
+        if job_dir.exists():
+
+            shutil.rmtree(job_dir)
+
+            print()
+            print("=" * 60)
+            print("TEMPORARY FILES DELETED")
+            print("=" * 60)
+            print("Deleted:", job_dir)
+            print("=" * 60)
+
+    except Exception as e:
+
+        print()
+        print("=" * 60)
+        print("TEMPORARY FILE CLEANUP FAILED")
+        print("=" * 60)
+        print("Error:", str(e))
+        print("=" * 60)
 
     # =====================================================
     # PRINT JSON
@@ -620,6 +672,33 @@ def comparison_api(request):
     print("=" * 60)
 
     # =====================================================
+    # DELETE LOCAL PDF
+    # =====================================================
+
+    try:
+
+        if pdf_path.exists():
+
+            pdf_path.unlink()
+
+            print()
+            print("=" * 60)
+            print("LOCAL COMPARISON PDF DELETED")
+            print("=" * 60)
+            print("Deleted:", pdf_path)
+            print("=" * 60)
+
+    except Exception as e:
+
+        print()
+        print("=" * 60)
+        print("COMPARISON PDF DELETE FAILED")
+        print("=" * 60)
+        print("File:", pdf_path)
+        print("Error:", str(e))
+        print("=" * 60)
+
+    # =====================================================
     # BUILD RESPONSE
     # =====================================================
 
@@ -633,6 +712,19 @@ def comparison_api(request):
         results=results,
         report_url=report_url,
     )
+
+    # DELETE ALL TEMPORARY IMAGES
+    job_dir = Path(settings.MEDIA_ROOT) / "api" / str(request_id)
+
+    try:
+
+        if job_dir.exists():
+            shutil.rmtree(job_dir)
+
+            print("TEMPORARY COMPARISON FILES DELETED:", job_dir)
+
+    except Exception as e:
+        print("COMPARISON IMAGE CLEANUP FAILED:", e)
 
     # =====================================================
     # PRINT RESPONSE
