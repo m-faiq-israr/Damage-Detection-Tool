@@ -1,5 +1,6 @@
 import os
 import uuid
+import json
 from pathlib import Path
 
 from django.conf import settings
@@ -20,6 +21,8 @@ from .storage import upload_file, get_file_url
 from django.core.files.base import ContentFile
 
 from .storage import upload_file, get_file_url
+from .ai.single_response import build_single_response
+from .ai.comparison_response import build_comparison_response
 
 # =========================================================
 # EXTERIOR PARTS
@@ -160,112 +163,171 @@ def upload_annotated_image(
         return None
 
 
-def download_report(request):
+def generate_and_upload_report(
+    request,
+    report_type,
+    inspection_results,
+):
+    """
+    Generate the PDF report, upload it to Supabase,
+    and return the Supabase signed URL.
+    """
 
-    report_type = request.GET.get("type", "comparison")
+    # =====================================================
+    # REQUEST ID
+    # =====================================================
 
     request_id = request.session.get("request_id")
 
     if not request_id:
+        raise ValueError("Request ID not found.")
+
+    # =====================================================
+    # GENERATE PDF
+    # =====================================================
+
+    pdf_response = generate_pdf(
+        inspection_results,
+        report_type=report_type,
+    )
+
+    # =====================================================
+    # SUPABASE STORAGE PATH
+    # =====================================================
+
+    storage_path = f"{request_id}/" f"report/" f"walkaround-report.pdf"
+
+    # =====================================================
+    # TEMPORARY LOCAL PDF
+    # =====================================================
+
+    temp_dir = Path(settings.MEDIA_ROOT) / "reports"
+
+    temp_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    if report_type == "single":
+
+        local_pdf_path = temp_dir / f"single_damage_report_{request_id}.pdf"
+
+    else:
+
+        local_pdf_path = temp_dir / f"car_damage_comparison_report_{request_id}.pdf"
+
+    # =====================================================
+    # SAVE PDF LOCALLY
+    # =====================================================
+
+    with open(local_pdf_path, "wb") as pdf_file:
+
+        pdf_file.write(pdf_response.content)
+
+    # =====================================================
+    # UPLOAD TO SUPABASE
+    # =====================================================
+
+    upload_file(
+        local_pdf_path,
+        storage_path,
+        content_type="application/pdf",
+    )
+
+    # =====================================================
+    # GENERATE SIGNED URL
+    # =====================================================
+
+    pdf_url = get_file_url(
+        storage_path,
+        expires_in=3600,
+    )
+
+    # =====================================================
+    # LOG
+    # =====================================================
+
+    print()
+    print("=" * 60)
+
+    if report_type == "single":
+
+        print("SUPABASE SINGLE PDF UPLOAD SUCCESS")
+
+    else:
+
+        print("SUPABASE COMPARISON PDF UPLOAD SUCCESS")
+
+    print("=" * 60)
+
+    print("Request ID:")
+    print(request_id)
+
+    print()
+
+    print("Storage Path:")
+    print(storage_path)
+
+    print()
+
+    print("PDF URL:")
+    print(pdf_url)
+
+    print("=" * 60)
+    print()
+
+    return pdf_url, pdf_response
+
+
+def download_report(request):
+
+    report_type = request.GET.get(
+        "type",
+        "comparison",
+    )
+
+    request_id = request.session.get("request_id")
+
+    if not request_id:
+
         return HttpResponse(
             "Request ID not found. Please run an inspection first.",
             status=400,
         )
 
     # =====================================================
-    # SINGLE INSPECTION REPORT
+    # SINGLE INSPECTION
     # =====================================================
 
     if report_type == "single":
 
-        single_results = request.session.get("single_results", {})
-
-        pdf_response = generate_pdf(single_results, report_type="single")
-
-        storage_path = f"{request_id}/" f"report/" f"walkaround-report.pdf"
+        inspection_results = request.session.get(
+            "single_results",
+            {},
+        )
 
     # =====================================================
-    # COMPARISON REPORT
+    # COMPARISON
     # =====================================================
 
     else:
 
-        inspection_results = request.session.get("inspection_results", {})
+        inspection_results = request.session.get(
+            "inspection_results",
+            {},
+        )
 
-        pdf_response = generate_pdf(inspection_results, report_type="comparison")
-
-        storage_path = f"{request_id}/" f"report/" f"walkaround-report.pdf"
     # =====================================================
-    # UPLOAD PDF TO SUPABASE
+    # GENERATE + UPLOAD
     # =====================================================
 
     try:
 
-        # Get PDF bytes from HttpResponse
-        pdf_bytes = pdf_response.content
-
-        # Temporary local file
-        temp_dir = Path(settings.MEDIA_ROOT) / "reports"
-
-        temp_dir.mkdir(parents=True, exist_ok=True)
-
-        if report_type == "single":
-
-            local_pdf_path = (
-                temp_dir / f"single_damage_report_" f"{request.session.session_key}.pdf"
-            )
-
-        else:
-
-            local_pdf_path = (
-                temp_dir / f"car_damage_comparison_report_"
-                f"{request.session.session_key}.pdf"
-            )
-
-        # Save PDF locally
-        with open(local_pdf_path, "wb") as pdf_file:
-
-            pdf_file.write(pdf_bytes)
-
-        # Upload to Supabase
-        upload_file(
-            local_pdf_path,
-            storage_path,
-            content_type="application/pdf",
+        pdf_url, pdf_response = generate_and_upload_report(
+            request,
+            report_type,
+            inspection_results,
         )
-
-        # Generate signed URL
-        pdf_url = get_file_url(
-            storage_path,
-            expires_in=3600,
-        )
-
-        # =================================================
-        # CONSOLE LOG
-        # =================================================
-
-        print()
-        print("=" * 60)
-
-        if report_type == "single":
-
-            print("SUPABASE SINGLE PDF UPLOAD SUCCESS")
-
-        else:
-
-            print("SUPABASE COMPARISON PDF UPLOAD SUCCESS")
-
-        print("=" * 60)
-
-        print("Storage Path:")
-        print(storage_path)
-
-        print()
-        print("PDF URL:")
-        print(pdf_url)
-
-        print("=" * 60)
-        print()
 
     except Exception as e:
 
@@ -273,22 +335,20 @@ def download_report(request):
         print("=" * 60)
         print("SUPABASE PDF UPLOAD FAILED")
         print("=" * 60)
-
         print("Error:", str(e))
-
         print("=" * 60)
         print()
+
+        return HttpResponse(
+            "Unable to generate inspection report.",
+            status=500,
+        )
 
     # =====================================================
     # RETURN PDF TO BROWSER
     # =====================================================
 
     return pdf_response
-
-
-# =========================================================
-# MAIN VIEW
-# =========================================================
 
 
 def index(request):
@@ -641,6 +701,34 @@ def index(request):
             # Store results in session for PDF
             request.session["inspection_results"] = inspection_results
 
+            # Generate + upload PDF
+            comparison_report_url, _ = generate_and_upload_report(
+                request,
+                report_type="comparison",
+                inspection_results=inspection_results,
+            )
+
+            # Build final API-style response
+            comparison_response = build_comparison_response(
+                request_id=request.session.get("request_id"),
+                inspection_results=inspection_results,
+                report_url=comparison_report_url,
+            )
+
+            request.session["comparison_response"] = comparison_response
+
+            request.session.modified = True
+
+            print()
+            print("=" * 60)
+            print("COMPARISON INSPECTION JSON RESPONSE")
+            print("=" * 60)
+
+            print(json.dumps(comparison_response, indent=2))
+
+            print("=" * 60)
+            print()
+
     return render(
         request,
         "inspections/index.html",
@@ -813,6 +901,47 @@ def single_inspection(request):
             request.session["single_json_report"] = json_report
 
             request.session.modified = True
+
+            try:
+
+                single_report_url, _ = generate_and_upload_report(
+                    request,
+                    report_type="single",
+                    inspection_results=single_results,
+                )
+
+                # Save report URL for response
+                request.session["single_report_url"] = single_report_url
+
+            except Exception as e:
+
+                print()
+                print("=" * 60)
+                print("SINGLE REPORT GENERATION FAILED")
+                print("=" * 60)
+                print("Error:", str(e))
+                print("=" * 60)
+                print()
+
+                single_report_url = None
+
+            single_response = build_single_response(
+                request_id=request.session.get("request_id"),
+                single_results=single_results,
+                report_url=single_report_url,
+            )
+
+            request.session["single_response"] = single_response
+
+            request.session.modified = True
+
+            print()
+            print("=" * 60)
+            print("SINGLE INSPECTION JSON RESPONSE")
+            print("=" * 60)
+            print(json.dumps(single_response, indent=2))
+            print("=" * 60)
+            print()
 
     return render(
         request,
