@@ -1,53 +1,133 @@
-from ultralytics import YOLO
-from pathlib import Path
 import cv2
 
-MODEL_PATH = Path(__file__).parent / "models" / "car_damage_yolo11.pt"
+from inference_sdk import InferenceHTTPClient
+from django.conf import settings
 
-model = YOLO(str(MODEL_PATH))
+CLIENT = InferenceHTTPClient(
+    api_url="https://serverless.roboflow.com",
+    api_key=settings.ROBOFLOW_API_KEY,
+)
+
+MODEL_ID = "car-damage-detection-5ioys-gngb8/1"
 
 
 def detect_damage(image_path, output_path=None):
-    """
-    Returns:
-        detections,
-        annotated_image_path
-    """
-
-    results = model(
+    result = CLIENT.infer(
         image_path,
-        conf=0.35,
-        verbose=False
+        model_id=MODEL_ID,
     )
 
-    result = results[0] # type: ignore
-
+    predictions = result.get("predictions", [])  # type: ignore
     detections = []
 
-    if result.boxes is not None: # type: ignore
+    for prediction in predictions:
 
-        for box in result.boxes: # type: ignore
+        damage_class = prediction["class"]
 
-            cls = int(box.cls.item())
+        confidence = float(prediction["confidence"])
 
-            confidence = float(box.conf.item())
+        # -------------------------------------------------
+        # CONFIDENCE FILTER
+        # -------------------------------------------------
 
-            x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
+        if confidence < 0.35:
+            continue
 
-            detections.append({
-                "type": model.names[cls],
+        x = float(prediction["x"])
+        y = float(prediction["y"])
+
+        width = float(prediction["width"])
+
+        height = float(prediction["height"])
+
+        # -------------------------------------------------
+        # CENTER → CORNERS
+        # -------------------------------------------------
+
+        x1 = int(x - width / 2)
+
+        y1 = int(y - height / 2)
+
+        x2 = int(x + width / 2)
+
+        y2 = int(y + height / 2)
+
+        detections.append(
+            {
+                "type": damage_class,
                 "confidence": confidence,
-                "bbox": [x1, y1, x2, y2]
-            })
+                "bbox": [
+                    x1,
+                    y1,
+                    x2,
+                    y2,
+                ],
+            }
+        )
+
+    # =====================================================
+    # CREATE ANNOTATED IMAGE
+    # =====================================================
 
     annotated_path = None
 
     if output_path:
 
-        annotated = result.plot() # type: ignore
+        image = cv2.imread(image_path)
 
-        cv2.imwrite(output_path, annotated)
+        if image is not None:
 
-        annotated_path = output_path
+            for detection in detections:
+
+                x1, y1, x2, y2 = detection["bbox"]
+
+                damage_class = detection["type"]
+
+                confidence = detection["confidence"]
+
+                # -------------------------------------------------
+                # DRAW BOUNDING BOX
+                # -------------------------------------------------
+
+                cv2.rectangle(
+                    image,
+                    (x1, y1),
+                    (x2, y2),
+                    (0, 0, 255),
+                    2,
+                )
+
+                # -------------------------------------------------
+                # LABEL
+                # -------------------------------------------------
+
+                label = f"{damage_class} " f"{confidence:.2f}"
+
+                cv2.putText(
+                    image,
+                    label,
+                    (
+                        x1,
+                        max(
+                            y1 - 10,
+                            20,
+                        ),
+                    ),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.6,
+                    (0, 0, 255),
+                    2,
+                )
+
+            cv2.imwrite(
+                output_path,
+                image,
+            )
+
+            annotated_path = output_path
+
+    # =====================================================
+    # RETURN
+    # =====================================================
 
     return detections, annotated_path
