@@ -264,6 +264,23 @@ def single_inspection_api(request):
             image_url=image_url,
         )
 
+        quality_check = result.get("quality_check", {})
+
+        if not quality_check.get("passed", True):
+
+            return JsonResponse(
+                {
+                    "error": "Image quality check failed",
+                    "request_id": request_id,
+                    "angle_code": angle_code,
+                    "quality_errors": quality_check.get(
+                        "errors",
+                        [],
+                    ),
+                },
+                status=400,
+            )
+
         results.append(result)
 
     # =====================================================
@@ -587,6 +604,22 @@ def comparison_api(request):
             baseline_url=baseline_map[part],
             current_url=current_map[part],
         )
+
+        if result.get("quality_check_failed"):
+
+            return JsonResponse(
+                {
+                    "error": "Image quality check failed",
+                    "request_id": request_id,
+                    "angle_code": part,
+                    "stage": result.get("quality_check_stage"),
+                    "quality_errors": result.get(
+                        "quality_errors",
+                        [],
+                    ),
+                },
+                status=400,
+            )
 
         results.append(result)
 

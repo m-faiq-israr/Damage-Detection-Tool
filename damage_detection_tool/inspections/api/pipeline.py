@@ -10,7 +10,7 @@ from ..ai.rim_segmentation import get_rim_crop
 from ..ai.rim_detector import detect_rim_damage
 from ..ai.interior_detector import detect_interior_damage
 from ..ai.compare import compare_damage
-
+from ..ai.quality_check import check_image_quality
 from ..storage import upload_file, get_file_url
 
 # =========================================================
@@ -104,6 +104,26 @@ def download_image(url, output_path):
     return str(output_path)
 
 
+def validate_image_quality(image_path):
+    """
+    Run quality checks on a locally downloaded image.
+
+    Returns:
+        {
+            "passed": bool,
+            "errors": [...]
+        }
+    """
+
+    image_path = Path(image_path)
+
+    with open(image_path, "rb") as file:
+
+        quality_result = check_image_quality(file)
+
+    return quality_result
+
+
 # =========================================================
 # AREA
 # =========================================================
@@ -149,6 +169,43 @@ def process_single_image(
         image_url,
         image_path,
     )
+
+    # -----------------------------------------------------
+    # QUALITY CHECK
+    # -----------------------------------------------------
+
+    quality_result = validate_image_quality(image_path)
+
+    print()
+    print("=" * 60)
+    print("IMAGE QUALITY CHECK")
+    print("=" * 60)
+    print("Part:", part)
+    print("Passed:", quality_result["passed"])
+
+    if quality_result["errors"]:
+
+        print("Errors:")
+
+        for error in quality_result["errors"]:
+            print("-", error)
+
+    print("=" * 60)
+
+    # -----------------------------------------------------
+    # STOP IF QUALITY CHECK FAILED
+    # -----------------------------------------------------
+
+    if not quality_result["passed"]:
+
+        return {
+            "part": part,
+            "damage": [],
+            "annotated_url": None,
+            "annotated_path": None,
+            "pipeline": "quality_check",
+            "quality_check": quality_result,
+        }
 
     # -----------------------------------------------------
     # ANNOTATED OUTPUT
@@ -257,6 +314,7 @@ def process_single_image(
         "annotated_path": str(annotated_path) if annotated_path.exists() else None,
         "annotated_url": annotated_url,
         "pipeline": pipeline,
+        "quality_check": quality_result,
     }
 
 
@@ -325,6 +383,82 @@ def process_comparison_part(
         current_url,
         current_path,
     )
+
+    # =====================================================
+    # QUALITY CHECK - BASELINE
+    # =====================================================
+
+    baseline_quality = validate_image_quality(baseline_path)
+
+    print()
+    print("=" * 60)
+    print("BASELINE IMAGE QUALITY CHECK")
+    print("=" * 60)
+    print("Part:", part)
+    print("Passed:", baseline_quality["passed"])
+
+    if baseline_quality["errors"]:
+
+        print("Errors:")
+
+        for error in baseline_quality["errors"]:
+            print("-", error)
+
+    print("=" * 60)
+
+    if not baseline_quality["passed"]:
+
+        return {
+            "part": part,
+            "before": [],
+            "after": [],
+            "new_damage": [],
+            "before_annotated_url": None,
+            "after_annotated_url": None,
+            "before_annotated_path": None,
+            "after_annotated_path": None,
+            "quality_check_failed": True,
+            "quality_check_stage": "baseline",
+            "quality_errors": baseline_quality["errors"],
+        }
+
+    # =====================================================
+    # QUALITY CHECK - CURRENT
+    # =====================================================
+
+    current_quality = validate_image_quality(current_path)
+
+    print()
+    print("=" * 60)
+    print("CURRENT IMAGE QUALITY CHECK")
+    print("=" * 60)
+    print("Part:", part)
+    print("Passed:", current_quality["passed"])
+
+    if current_quality["errors"]:
+
+        print("Errors:")
+
+        for error in current_quality["errors"]:
+            print("-", error)
+
+    print("=" * 60)
+
+    if not current_quality["passed"]:
+
+        return {
+            "part": part,
+            "before": [],
+            "after": [],
+            "new_damage": [],
+            "before_annotated_url": None,
+            "after_annotated_url": None,
+            "before_annotated_path": None,
+            "after_annotated_path": None,
+            "quality_check_failed": True,
+            "quality_check_stage": "current",
+            "quality_errors": current_quality["errors"],
+        }
 
     # =====================================================
     # INTERIOR
