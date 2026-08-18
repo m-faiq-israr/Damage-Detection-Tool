@@ -15,7 +15,7 @@ CLIENT = InferenceHTTPClient(
     api_key=ROBOFLOW_API_KEY,
 )
 
-MODEL_ID = "car-damage-detection-5ioys/1"
+MODEL_ID = "faiq-qureshi/car-damage-detection-5ioys-oo884-2-rfdetr-nano-t1"
 
 
 # =========================================================
