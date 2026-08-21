@@ -150,3 +150,11 @@ SUPABASE_STORAGE_BUCKET = os.getenv(
 
 
 AI_SERVICE_API_KEY = os.getenv("AI_SERVICE_API_KEY")
+
+
+EXTERIOR_MODEL_API_URL = os.getenv(
+    "EXTERIOR_MODEL_API_URL",
+    "http://localhost:8001",
+)
+
+EXTERIOR_MODEL_API_KEY = os.getenv("EXTERIOR_MODEL_API_KEY")

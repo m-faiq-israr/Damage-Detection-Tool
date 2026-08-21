@@ -1,21 +1,16 @@
 from pathlib import Path
 
 import cv2
-from inference_sdk import InferenceHTTPClient
+import requests
 from django.conf import settings
 
 # =========================================================
-# ROBOFLOW CONFIGURATION
+# EXTERIOR MODEL SERVICE CONFIGURATION
 # =========================================================
 
-ROBOFLOW_API_KEY = settings.ROBOFLOW_API_KEY
+EXTERIOR_MODEL_API_URL = settings.EXTERIOR_MODEL_API_URL
 
-CLIENT = InferenceHTTPClient(
-    api_url="https://serverless.roboflow.com",
-    api_key=ROBOFLOW_API_KEY,
-)
-
-MODEL_ID = "faiq-qureshi/car-damage-detection-5ioys-oo884-2-rfdetr-nano-t1"
+EXTERIOR_MODEL_API_KEY = settings.EXTERIOR_MODEL_API_KEY
 
 
 # =========================================================
@@ -25,7 +20,8 @@ MODEL_ID = "faiq-qureshi/car-damage-detection-5ioys-oo884-2-rfdetr-nano-t1"
 
 def detect_damage(image_path, output_path=None):
     """
-    Run Roboflow car damage detection.
+    Run exterior car damage detection via our
+    self-hosted YOLO model service.
 
     Returns:
         detections,
@@ -33,15 +29,21 @@ def detect_damage(image_path, output_path=None):
     """
 
     # =====================================================
-    # RUN ROBOFLOW INFERENCE
+    # RUN MODEL SERVICE INFERENCE
     # =====================================================
 
-    result = CLIENT.infer(
-        image_path,
-        model_id=MODEL_ID,
-    )
+    with open(image_path, "rb") as image_file:
 
-    predictions = result.get("predictions", [])  # type: ignore
+        response = requests.post(
+            f"{EXTERIOR_MODEL_API_URL}/v1/detect/exterior",
+            files={"image": image_file},
+            headers={"Authorization": f"Bearer {EXTERIOR_MODEL_API_KEY}"},
+            timeout=60,
+        )
+
+    response.raise_for_status()
+
+    predictions = response.json().get("predictions", [])
 
     detections = []
 
@@ -58,20 +60,7 @@ def detect_damage(image_path, output_path=None):
         if confidence < 0.35:
             continue
 
-        x = float(prediction["x"])
-        y = float(prediction["y"])
-
-        width = float(prediction["width"])
-        height = float(prediction["height"])
-
-        # Convert center coordinates to
-        # x1, y1, x2, y2
-
-        x1 = int(x - width / 2)
-        y1 = int(y - height / 2)
-
-        x2 = int(x + width / 2)
-        y2 = int(y + height / 2)
+        x1, y1, x2, y2 = prediction["bbox"]
 
         detections.append(
             {
