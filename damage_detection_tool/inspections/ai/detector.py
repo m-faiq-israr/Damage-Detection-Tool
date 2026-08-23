@@ -38,7 +38,7 @@ def detect_damage(image_path, output_path=None):
             f"{EXTERIOR_MODEL_API_URL}/v1/detect/exterior",
             files={"image": image_file},
             headers={"Authorization": f"Bearer {EXTERIOR_MODEL_API_KEY}"},
-            timeout=60,
+            timeout=120,
         )
 
     response.raise_for_status()
