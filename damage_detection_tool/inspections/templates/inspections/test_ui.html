@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walkaround API Test Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --panel: #ffffff;
+    --border: #e6e8ee;
+    --text: #1b1e2b;
+    --text-muted: #6b7080;
+    --accent: #4338ca;
+    --accent-hover: #372ea8;
+    --accent-soft: #eeecfd;
+    --danger: #dc2626;
+    --danger-soft: #fdecec;
+    --high: #dc2626;
+    --medium: #d97706;
+    --low: #059669;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20, 21, 40, 0.04), 0 8px 24px rgba(20, 21, 40, 0.06);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app { max-width: 1320px; margin: 0 auto; padding: 28px 32px 80px; }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .brand { display: flex; align-items: center; gap: 14px; }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+
+  .brand h1 { font-size: 19px; font-weight: 700; margin: 0; }
+  .brand p { font-size: 13px; color: var(--text-muted); margin: 2px 0 0; }
+
+  .env-badge {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid #dcd9fb;
+    padding: 6px 12px;
+    border-radius: 999px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: 22px;
+    align-items: start;
+  }
+
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: 1fr; }
+    .app { padding: 20px 16px 60px; }
+  }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .panel-block { padding: 22px 24px; border-bottom: 1px solid var(--border); }
+  .panel-block:last-child { border-bottom: none; }
+
+  .panel-block h2 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin: 0 0 14px;
+  }
+
+  .block-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .block-header h2 { margin: 0; }
+
+  .hint { font-size: 13px; color: var(--text-muted); margin: -6px 0 16px; }
+
+  /* --- type toggle --- */
+
+  .type-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .type-btn {
+    text-align: left;
+    padding: 14px 16px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: #fbfbfd;
+    cursor: pointer;
+    font-family: inherit;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .type-btn:hover { border-color: #c8c4f5; }
+
+  .type-btn.active { border-color: var(--accent); background: var(--accent-soft); }
+
+  .type-title { display: block; font-weight: 600; font-size: 14px; }
+  .type-desc { display: block; font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+  /* --- metadata --- */
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .meta-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .meta-grid input, .meta-grid select {
+    font-family: inherit;
+    font-size: 13.5px;
+    color: var(--text);
+    padding: 9px 11px;
+    border-radius: 8px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .meta-grid input:focus, .meta-grid select:focus { border-color: var(--accent); }
+
+  .meta-grid input[readonly] { background: #f5f5fa; color: var(--text-muted); }
+
+  .ghost-btn {
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: none;
+    padding: 8px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .ghost-btn:hover { background: #e1ddfb; }
+
+  /* --- angle grid --- */
+
+  .angle-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .angle-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    background: #fbfbfd;
+  }
+
+  .angle-name { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+
+  .slots { display: grid; gap: 8px; }
+  .slots.comparison { grid-template-columns: 1fr 1fr; }
+
+  .slot { display: flex; flex-direction: column; gap: 6px; }
+
+  .slot-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); }
+
+  .slot-drop {
+    position: relative;
+    height: 92px;
+    border-radius: 8px;
+    border: 1.5px dashed #cfd2de;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .slot-drop:hover, .slot-drop.dragover { border-color: var(--accent); background: var(--accent-soft); }
+
+  .slot.filled .slot-drop { border-style: solid; border-color: #c8c4f5; }
+
+  .file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+  .slot-placeholder { font-size: 12px; color: var(--text-muted); font-weight: 500; pointer-events: none; }
+
+  .slot-preview { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+
+  .slot-remove {
+    align-self: flex-start;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--danger);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  /* --- submit --- */
+
+  .submit-block { display: flex; flex-direction: column; gap: 10px; }
+
+  .primary-btn {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    padding: 13px 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .primary-btn:hover { background: var(--accent-hover); }
+  .primary-btn:disabled { background: #b7b3e8; cursor: not-allowed; }
+
+  .primary-btn.small { padding: 9px 16px; font-size: 12.5px; text-decoration: none; display: inline-block; }
+
+  .status-line { font-size: 12.5px; color: var(--text-muted); min-height: 16px; }
+
+  .error-box {
+    font-size: 13px;
+    color: var(--danger);
+    background: var(--danger-soft);
+    border: 1px solid #f6cccc;
+    padding: 12px 14px;
+    border-radius: 8px;
+  }
+
+  /* --- results panel --- */
+
+  .results-panel { position: sticky; top: 24px; min-height: 320px; }
+
+  .results-empty { padding: 60px 28px; text-align: center; }
+  .results-empty h2 { font-size: 16px; margin: 0 0 6px; }
+  .results-empty p { font-size: 13px; color: var(--text-muted); margin: 0; }
+
+  .results-content { padding: 22px 24px; }
+
+  .results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .results-header h2 { font-size: 16px; margin: 0; }
+
+  .results-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    background: #fbfbfd;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+  }
+
+  .results-meta div { display: flex; flex-direction: column; gap: 2px; }
+  .results-meta span { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); }
+  .results-meta strong { font-size: 12.5px; font-weight: 600; word-break: break-all; }
+
+  .no-damage {
+    padding: 30px 16px;
+    text-align: center;
+    font-size: 13.5px;
+    color: var(--low);
+    background: #ecfdf5;
+    border: 1px solid #c9f2e0;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .damage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .damage-card {
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    background: #fff;
+    border-left: 4px solid var(--border);
+  }
+
+  .damage-card.severity-high { border-left-color: var(--high); }
+  .damage-card.severity-medium { border-left-color: var(--medium); }
+  .damage-card.severity-low { border-left-color: var(--low); }
+
+  .damage-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+
+  .part-code { font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 0.03em; }
+
+  .severity-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 999px;
+    color: #fff;
+  }
+
+  .severity-high .severity-badge { background: var(--high); }
+  .severity-medium .severity-badge { background: var(--medium); }
+  .severity-low .severity-badge { background: var(--low); }
+
+  .damage-label { font-size: 13.5px; font-weight: 700; margin-bottom: 4px; }
+
+  .damage-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+  .damage-meta span { background: #f2f2f6; padding: 2px 7px; border-radius: 999px; }
+  .change-badge { background: var(--accent-soft) !important; color: var(--accent); font-weight: 700; }
+
+  .damage-thumb { width: 100%; height: 110px; object-fit: cover; border-radius: 8px; cursor: zoom-in; display: block; }
+
+  .raw-json { margin-top: 18px; }
+  .raw-json summary { font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; }
+  .raw-json pre {
+    margin-top: 10px;
+    background: #14152a;
+    color: #d7d9ea;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    overflow-x: auto;
+    max-height: 320px;
+  }
+
+  /* --- lightbox --- */
+
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 16, 30, 0.82);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 40px;
+  }
+
+  .lightbox[hidden] { display: none; }
+
+  .lightbox img { max-width: 100%; max-height: 100%; border-radius: 8px; }
+
+  .lightbox-close {
+    position: absolute;
+    top: 22px;
+    right: 28px;
+    font-size: 28px;
+    color: #fff;
+    background: none;
+    border: none;
+    cursor: pointer;
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">DD</div>
+      <div>
+        <h1>Walkaround API Test Console</h1>
+        <p>Exercises the real /api/v1/walkaround endpoints for demos</p>
+      </div>
+    </div>
+    <div class="env-badge">TEST MODE</div>
+  </header>
+
+  <main class="layout">
+
+    <section class="panel form-panel">
+
+      <div class="panel-block">
+        <h2>1. Walkaround type</h2>
+        <div class="type-toggle" id="typeToggle">
+          <button type="button" class="type-btn active" data-type="single">
+            <span class="type-title">Single Walkaround</span>
+            <span class="type-desc">One image per angle</span>
+          </button>
+          <button type="button" class="type-btn" data-type="comparison">
+            <span class="type-title">Comparison Walkaround</span>
+            <span class="type-desc">Baseline + current image per angle</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <div class="block-header">
+          <h2>2. Request metadata</h2>
+          <button type="button" class="ghost-btn" id="regenerateBtn">Regenerate IDs</button>
+        </div>
+        <div class="meta-grid">
+          <label>Request ID
+            <input id="requestId" type="text">
+          </label>
+          <label>Vehicle ID
+            <input id="vehicleId" type="number" step="1">
+          </label>
+          <label>Tenant ID
+            <input id="tenantId" type="number" step="1">
+          </label>
+          <label>Kind
+            <input id="kindField" type="text" readonly>
+          </label>
+          <label>Body shape
+            <select id="bodyShape">
+              {% for shape in body_shapes %}
+              <option value="{{ shape }}">{{ shape|title }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>Part catalog version
+            <input id="partCatalogVersion" type="text">
+          </label>
+        </div>
+      </div>
+
+      <div class="panel-block">
+        <h2>3. Exterior images</h2>
+        <p class="hint">Upload the angles you want to test — you don't need all eight.</p>
+        <div class="angle-grid" id="angleGrid"></div>
+      </div>
+
+      <div class="panel-block submit-block">
+        <button type="button" id="runBtn" class="primary-btn">Run Inspection</button>
+        <div class="status-line" id="statusLine"></div>
+        <div class="error-box" id="errorBox" hidden></div>
+      </div>
+
+    </section>
+
+    <section class="panel results-panel">
+      <div class="results-empty" id="resultsEmpty">
+        <h2>Results</h2>
+        <p>Run an inspection to see detected damage here.</p>
+      </div>
+      <div class="results-content" id="resultsContent" hidden></div>
+    </section>
+
+  </main>
+
+</div>
+
+<div class="lightbox" id="lightbox" hidden>
+  <button class="lightbox-close" id="lightboxClose">&times;</button>
+  <img id="lightboxImg" alt="Annotated image">
+</div>
+
+<script id="angles-data" type="application/json">{{ angles_json|safe }}</script>
+<script>
+const ANGLES = JSON.parse(document.getElementById('angles-data').textContent);
+const UPLOAD_URL = "{% url 'test_ui_upload' %}";
+const SUBMIT_URL = "{% url 'test_ui_submit' %}";
+
+let walkaroundType = 'single';
+const files = {};
+ANGLES.forEach(a => { files[a.code] = {}; });
+
+// ---------- id generators ----------
+
+function randomShortId(len) {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let s = '';
+  for (let i = 0; i < len; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomVersion() {
+  const major = Math.floor(Math.random() * 4) + 1;
+  const minor = Math.floor(Math.random() * 9);
+  const patch = Math.floor(Math.random() * 9);
+  return `v${major}.${minor}.${patch}`;
+}
+
+function regenerateIds() {
+  document.getElementById('requestId').value = randomShortId(8);
+  document.getElementById('vehicleId').value = randomInt(100000, 999999);
+  document.getElementById('tenantId').value = randomInt(100000, 999999);
+  document.getElementById('partCatalogVersion').value = randomVersion();
+}
+
+function updateKindField() {
+  document.getElementById('kindField').value =
+    walkaroundType === 'single' ? 'analyze' : 'compare';
+}
+
+// ---------- angle grid ----------
+
+function slotHTML(angle, slotKey, label) {
+  return `
+    <div class="slot" data-angle="${angle}" data-slot="${slotKey}">
+      <span class="slot-label">${label}</span>
+      <div class="slot-drop">
+        <input type="file" accept="image/*" class="file-input" data-angle="${angle}" data-slot="${slotKey}">
+        <span class="slot-placeholder">+ Add photo</span>
+        <img class="slot-preview" hidden>
+      </div>
+      <button type="button" class="slot-remove" hidden>Remove</button>
+    </div>`;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('angleGrid');
+
+  grid.innerHTML = ANGLES.map(a => {
+    const slots = walkaroundType === 'single'
+      ? slotHTML(a.code, 'single', 'Photo')
+      : slotHTML(a.code, 'baseline', 'Baseline') + slotHTML(a.code, 'current', 'Current');
+
+    return `<div class="angle-card">
+      <div class="angle-name">${a.label}</div>
+      <div class="slots ${walkaroundType}">${slots}</div>
+    </div>`;
+  }).join('');
+}
+
+function onFileSelected(input) {
+  const angle = input.dataset.angle;
+  const slot = input.dataset.slot;
+  const file = input.files[0];
+  if (!file) return;
+
+  files[angle][slot] = file;
+
+  const slotEl = input.closest('.slot');
+  const preview = slotEl.querySelector('.slot-preview');
+  const placeholder = slotEl.querySelector('.slot-placeholder');
+  const removeBtn = slotEl.querySelector('.slot-remove');
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    preview.src = reader.result;
+    preview.hidden = false;
+    placeholder.hidden = true;
+    removeBtn.hidden = false;
+    slotEl.classList.add('filled');
+  };
+  reader.readAsDataURL(file);
+}
+
+function onRemoveClicked(btn) {
+  const slotEl = btn.closest('.slot');
+  const angle = slotEl.dataset.angle;
+  const slot = slotEl.dataset.slot;
+
+  delete files[angle][slot];
+
+  const input = slotEl.querySelector('.file-input');
+  input.value = '';
+  slotEl.querySelector('.slot-preview').hidden = true;
+  slotEl.querySelector('.slot-placeholder').hidden = false;
+  btn.hidden = true;
+  slotEl.classList.remove('filled');
+}
+
+const angleGridEl = document.getElementById('angleGrid');
+
+angleGridEl.addEventListener('change', e => {
+  if (e.target.classList.contains('file-input')) onFileSelected(e.target);
+});
+
+angleGridEl.addEventListener('click', e => {
+  if (e.target.classList.contains('slot-remove')) onRemoveClicked(e.target);
+});
+
+angleGridEl.addEventListener('dragover', e => {
+  const drop = e.target.closest('.slot-drop');
+  if (drop) { e.preventDefault(); drop.classList.add('dragover'); }
+});
+
+angleGridEl.addEventListener('dragleave', e => {
+  const drop = e.target.closest('.slot-drop');
+  if (drop) drop.classList.remove('dragover');
+});
+
+angleGridEl.addEventListener('drop', e => {
+  const drop = e.target.closest('.slot-drop');
+  if (!drop) return;
+  e.preventDefault();
+  drop.classList.remove('dragover');
+  const input = drop.querySelector('.file-input');
+  if (e.dataTransfer.files.length) {
+    input.files = e.dataTransfer.files;
+    onFileSelected(input);
+  }
+});
+
+// ---------- type toggle ----------
+
+document.getElementById('typeToggle').addEventListener('click', e => {
+  const btn = e.target.closest('.type-btn');
+  if (!btn) return;
+
+  walkaroundType = btn.dataset.type;
+
+  document.querySelectorAll('.type-btn').forEach(b => b.classList.toggle('active', b === btn));
+
+  ANGLES.forEach(a => { files[a.code] = {}; });
+
+  updateKindField();
+  renderGrid();
+  resetResults();
+  clearError();
+});
+
+// ---------- status / error helpers ----------
+
+function setStatus(text) {
+  document.getElementById('statusLine').textContent = text;
+}
+
+function showError(data) {
+  const box = document.getElementById('errorBox');
+  let msg = data.error || 'Something went wrong.';
+  if (data.quality_errors && data.quality_errors.length) {
+    msg += ' — ' + data.quality_errors.join(', ');
+  }
+  box.textContent = msg;
+  box.hidden = false;
+}
+
+function clearError() {
+  const box = document.getElementById('errorBox');
+  box.hidden = true;
+  box.textContent = '';
+}
+
+function resetResults() {
+  document.getElementById('resultsEmpty').hidden = false;
+  document.getElementById('resultsContent').hidden = true;
+  document.getElementById('resultsContent').innerHTML = '';
+}
+
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+// ---------- submit ----------
+
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(UPLOAD_URL, { method: 'POST', body: formData });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Upload failed');
+  return data.url;
+}
+
+async function buildPayload() {
+  const requestId = document.getElementById('requestId').value.trim();
+  const vehicleId = parseInt(document.getElementById('vehicleId').value, 10);
+  const tenantId = parseInt(document.getElementById('tenantId').value, 10);
+  const kind = document.getElementById('kindField').value.trim();
+  const bodyShape = document.getElementById('bodyShape').value;
+  const partCatalogVersion = document.getElementById('partCatalogVersion').value.trim();
+
+  if (!requestId || Number.isNaN(vehicleId) || Number.isNaN(tenantId)) {
+    throw new Error('Request ID, Vehicle ID and Tenant ID are required.');
+  }
+
+  const payload = {
+    request_id: requestId,
+    vehicle_id: vehicleId,
+    tenant_id: tenantId,
+    kind: kind,
+    body_shape: bodyShape,
+    part_catalog_version: partCatalogVersion,
+    walkaround_type: walkaroundType,
+  };
+
+  if (walkaroundType === 'single') {
+    const images = [];
+    for (const angle of ANGLES) {
+      const file = files[angle.code].single;
+      if (!file) continue;
+      setStatus(`Uploading ${angle.label}...`);
+      const url = await uploadFile(file);
+      images.push({ angle_code: angle.code, url });
+    }
+    if (images.length === 0) throw new Error('Add at least one photo before running the inspection.');
+    payload.images = images;
+  } else {
+    const baselineImages = [];
+    const currentImages = [];
+    for (const angle of ANGLES) {
+      const pair = files[angle.code];
+      if (!pair.baseline && !pair.current) continue;
+      if (!pair.baseline || !pair.current) {
+        throw new Error(`${angle.label}: both baseline and current photos are required.`);
+      }
+      setStatus(`Uploading ${angle.label}...`);
+      const [baseUrl, curUrl] = await Promise.all([uploadFile(pair.baseline), uploadFile(pair.current)]);
+      baselineImages.push({ angle_code: angle.code, url: baseUrl });
+      currentImages.push({ angle_code: angle.code, url: curUrl });
+    }
+    if (baselineImages.length === 0) throw new Error('Add at least one angle with both baseline and current photos.');
+    payload.baseline_images = baselineImages;
+    payload.current_images = currentImages;
+  }
+
+  return payload;
+}
+
+document.getElementById('runBtn').addEventListener('click', async () => {
+  const runBtn = document.getElementById('runBtn');
+  runBtn.disabled = true;
+  clearError();
+  resetResults();
+
+  try {
+    const payload = await buildPayload();
+    setStatus('Running detection pipeline — this can take a little while...');
+
+    const res = await fetch(SUBMIT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json().catch(() => ({ error: 'Unexpected server response.' }));
+
+    if (!res.ok) {
+      showError(data);
+    } else {
+      renderResults(data);
+    }
+  } catch (err) {
+    showError({ error: err.message });
+  } finally {
+    runBtn.disabled = false;
+    setStatus('');
+  }
+});
+
+// ---------- results ----------
+
+function renderResults(data) {
+  const content = document.getElementById('resultsContent');
+  document.getElementById('resultsEmpty').hidden = true;
+  content.hidden = false;
+
+  const reportUrl = data['report url'];
+
+  let partsHtml;
+  if (!data.parts || data.parts.length === 0) {
+    partsHtml = `<div class="no-damage">No damage detected on the submitted angles.</div>`;
+  } else {
+    partsHtml = `<div class="damage-grid">` + data.parts.map(p => `
+      <div class="damage-card severity-${p.severity}">
+        <div class="damage-card-top">
+          <span class="part-code">${p.part_code}</span>
+          <span class="severity-badge">${p.severity}</span>
+        </div>
+        <div class="damage-label">${escapeHtml(p.label || '')}</div>
+        <div class="damage-meta">
+          <span>${p.area}</span>
+          <span>${p.probability}% confidence</span>
+          ${p.change ? `<span class="change-badge">${p.change}</span>` : ''}
+        </div>
+        ${p.annotated_image_url ? `<img class="damage-thumb" src="${p.annotated_image_url}" data-full="${p.annotated_image_url}">` : ''}
+      </div>
+    `).join('') + `</div>`;
+  }
+
+  content.innerHTML = `
+    <div class="results-header">
+      <h2>Results</h2>
+      ${reportUrl ? `<a class="primary-btn small" href="${reportUrl}" target="_blank" rel="noopener">Download Report</a>` : ''}
+    </div>
+    <div class="results-meta">
+      <div><span>Request ID</span><strong>${data.request_id || ''}</strong></div>
+      <div><span>Vehicle ID</span><strong>${data.vehicle_id || ''}</strong></div>
+      <div><span>Tenant ID</span><strong>${data.tenant_id || ''}</strong></div>
+      <div><span>Kind</span><strong>${data.kind || ''}</strong></div>
+      <div><span>Body shape</span><strong>${data.body_shape || ''}</strong></div>
+      <div><span>Catalog version</span><strong>${data.part_catalog_version || ''}</strong></div>
+    </div>
+    ${partsHtml}
+    <details class="raw-json">
+      <summary>View raw API response</summary>
+      <pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre>
+    </details>
+  `;
+
+  content.querySelectorAll('.damage-thumb').forEach(img => {
+    img.addEventListener('click', () => openLightbox(img.dataset.full));
+  });
+}
+
+// ---------- lightbox ----------
+
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').hidden = false;
+}
+
+document.getElementById('lightboxClose').addEventListener('click', () => {
+  document.getElementById('lightbox').hidden = true;
+});
+
+document.getElementById('lightbox').addEventListener('click', e => {
+  if (e.target.id === 'lightbox') document.getElementById('lightbox').hidden = true;
+});
+
+// ---------- init ----------
+
+regenerateIds();
+updateKindField();
+renderGrid();
+document.getElementById('regenerateBtn').addEventListener('click', regenerateIds);
+</script>
+
+</body>
+</html>
