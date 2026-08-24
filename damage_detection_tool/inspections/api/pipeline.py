@@ -48,19 +48,7 @@ INTERIOR_PARTS = {
 }
 
 
-# =========================================================
-# PART CODE
-# =========================================================
-
 PART_CODES = {
-    "front": "A00",
-    "rear": "A01",
-    "left": "A02",
-    "right": "A03",
-    "front_left": "A04",
-    "front_right": "A05",
-    "rear_left": "A06",
-    "rear_right": "A07",
     "rim_front_left": "A09",
     "rim_front_right": "A10",
     "rim_rear_left": "A11",

@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from ..ai.report import generate_report
+from ..ai.part_codes import resolve_exterior_part_code
 from ..pdf_report import generate_pdf
 
 from ..storage import upload_file, get_file_url
@@ -18,8 +19,17 @@ from .pipeline import (
     process_comparison_part,
     PART_CODES,
     INTERIOR_PARTS,
+    EXTERIOR_PARTS,
 )
 from .auth import require_api_key
+
+
+def resolve_part_code(part, damage_type):
+
+    if part in EXTERIOR_PARTS:
+        return resolve_exterior_part_code(damage_type, part)
+
+    return PART_CODES.get(part, "UNKNOWN")
 
 # =========================================================
 # HELPERS
@@ -80,10 +90,7 @@ def build_single_response(
 
             parts.append(
                 {
-                    "part_code": PART_CODES.get(
-                        part,
-                        "UNKNOWN",
-                    ),
+                    "part_code": resolve_part_code(part, damage_type),
                     "area": ("interior" if part in INTERIOR_PARTS else "exterior"),
                     "probability": round(confidence * 100),
                     "severity": get_severity(confidence),
@@ -150,10 +157,7 @@ def build_comparison_response(
 
             parts.append(
                 {
-                    "part_code": PART_CODES.get(
-                        part,
-                        "UNKNOWN",
-                    ),
+                    "part_code": resolve_part_code(part, damage_type),
                     "area": ("interior" if part in INTERIOR_PARTS else "exterior"),
                     "probability": round(confidence * 100),
                     "severity": get_severity(confidence),

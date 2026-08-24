@@ -1,16 +1,6 @@
-# =========================================================
-# PART CODES
-# =========================================================
+from .part_codes import resolve_exterior_part_code
 
 PART_CODES = {
-    "front": "A00",
-    "rear": "A01",
-    "left": "A02",
-    "right": "A03",
-    "front_right": "A04",
-    "front_left": "A05",
-    "rear_right": "A06",
-    "rear_left": "A07",
     "rim_front_right": "A08",
     "rim_front_left": "A09",
     "rim_rear_right": "A10",
@@ -45,6 +35,27 @@ EXTERIOR_PARTS = {
     "rim_rear_right",
     "rim_rear_left",
 }
+
+# The subset of EXTERIOR_PARTS that are body-panel angles (as opposed
+# to rims), whose part codes are resolved from the damage class.
+EXTERIOR_ANGLE_PARTS = {
+    "front",
+    "rear",
+    "left",
+    "right",
+    "front_right",
+    "front_left",
+    "rear_right",
+    "rear_left",
+}
+
+
+def resolve_part_code(part, damage_class):
+
+    if part in EXTERIOR_ANGLE_PARTS:
+        return resolve_exterior_part_code(damage_class, part)
+
+    return PART_CODES.get(part, "UNKNOWN")
 
 
 # =========================================================
@@ -106,10 +117,7 @@ def build_comparison_response(
 
             parts.append(
                 {
-                    "part_code": PART_CODES.get(
-                        part,
-                        "UNKNOWN",
-                    ),
+                    "part_code": resolve_part_code(part, label),
                     "area": area,
                     "probability": probability,
                     "severity": "very_high",
