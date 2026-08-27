@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     single_inspection_api,
     comparison_api,
+    quality_check_api,
 )
 
 urlpatterns = [
@@ -15,5 +16,10 @@ urlpatterns = [
         "walkaround/compare/",
         comparison_api,
         name="comparison_api",
+    ),
+    path(
+        "walkaround/quality-check/",
+        quality_check_api,
+        name="quality_check_api",
     ),
 ]

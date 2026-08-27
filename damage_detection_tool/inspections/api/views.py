@@ -17,6 +17,7 @@ from ..storage import upload_file, get_file_url
 from .pipeline import (
     process_single_image,
     process_comparison_part,
+    process_quality_check_image,
     PART_CODES,
     INTERIOR_PARTS,
     EXTERIOR_PARTS,
@@ -267,23 +268,6 @@ def single_inspection_api(request):
             part=angle_code,
             image_url=image_url,
         )
-
-        quality_check = result.get("quality_check", {})
-
-        if not quality_check.get("passed", True):
-
-            return JsonResponse(
-                {
-                    "error": "Image quality check failed",
-                    "request_id": request_id,
-                    "angle_code": angle_code,
-                    "quality_errors": quality_check.get(
-                        "errors",
-                        [],
-                    ),
-                },
-                status=400,
-            )
 
         results.append(result)
 
@@ -609,22 +593,6 @@ def comparison_api(request):
             current_url=current_map[part],
         )
 
-        if result.get("quality_check_failed"):
-
-            return JsonResponse(
-                {
-                    "error": "Image quality check failed",
-                    "request_id": request_id,
-                    "angle_code": part,
-                    "stage": result.get("quality_check_stage"),
-                    "quality_errors": result.get(
-                        "quality_errors",
-                        [],
-                    ),
-                },
-                status=400,
-            )
-
         results.append(result)
 
     # =====================================================
@@ -789,6 +757,133 @@ def comparison_api(request):
     )
 
     print("=" * 60)
+
+    return JsonResponse(
+        response_data,
+        status=200,
+    )
+
+
+# =========================================================
+# QUALITY CHECK API
+# =========================================================
+
+
+@csrf_exempt
+@require_POST
+def quality_check_api(request):
+
+    auth_error = require_api_key(request)
+
+    if auth_error:
+        return auth_error
+
+    try:
+
+        import json
+
+        payload = json.loads(request.body)
+
+    except Exception:
+
+        return JsonResponse(
+            {"error": "Invalid JSON payload"},
+            status=400,
+        )
+
+    request_id = payload.get("request_id")
+
+    if not request_id:
+
+        return JsonResponse(
+            {"error": "request_id is required"},
+            status=400,
+        )
+
+    images = payload.get(
+        "images",
+        [],
+    )
+
+    if not isinstance(images, list) or not images:
+
+        return JsonResponse(
+            {"error": "images must be a non-empty array"},
+            status=400,
+        )
+
+    # =====================================================
+    # PROCESS EACH IMAGE
+    # =====================================================
+
+    results = []
+
+    for image in images:
+
+        angle_code = image.get("angle_code")
+
+        image_url = image.get("url")
+
+        if not angle_code:
+
+            return JsonResponse(
+                {"error": "angle_code is required for each image"},
+                status=400,
+            )
+
+        if not image_url:
+
+            return JsonResponse(
+                {"error": "url is required for each image"},
+                status=400,
+            )
+
+        print()
+        print("=" * 60)
+        print(f"QUALITY CHECK: {angle_code}")
+        print("=" * 60)
+
+        result = process_quality_check_image(
+            request_id=request_id,
+            angle_code=angle_code,
+            image_url=image_url,
+        )
+
+        print("Passed:", result["passed"])
+
+        if result["errors"]:
+
+            print("Errors:")
+
+            for error in result["errors"]:
+                print("-", error)
+
+        print("=" * 60)
+
+        results.append(result)
+
+    # =====================================================
+    # CLEAN TEMPORARY LOCAL FILES
+    # =====================================================
+
+    job_dir = Path(settings.MEDIA_ROOT) / "api" / "quality_check" / str(request_id)
+
+    try:
+
+        if job_dir.exists():
+            shutil.rmtree(job_dir)
+
+    except Exception as e:
+        print("QUALITY CHECK TEMP FILE CLEANUP FAILED:", e)
+
+    # =====================================================
+    # BUILD RESPONSE
+    # =====================================================
+
+    response_data = {
+        "request_id": request_id,
+        "results": results,
+    }
 
     return JsonResponse(
         response_data,

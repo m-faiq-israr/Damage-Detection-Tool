@@ -113,6 +113,67 @@ def validate_image_quality(image_path):
 
 
 # =========================================================
+# QUALITY CHECK ONLY
+# =========================================================
+
+
+def process_quality_check_image(
+    request_id,
+    angle_code,
+    image_url,
+):
+    """
+    Download one image and run the quality check on it only
+    (no damage detection).
+
+    Returns:
+        {
+            "angle_code": ...,
+            "passed": bool,
+            "errors": [...]
+        }
+    """
+
+    media_dir = Path(settings.MEDIA_ROOT)
+
+    job_dir = media_dir / "api" / "quality_check" / str(request_id)
+
+    job_dir.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+
+    filename = f"{angle_code}_{uuid4().hex}.jpg"
+
+    image_path = job_dir / filename
+
+    download_image(
+        image_url,
+        image_path,
+    )
+
+    try:
+
+        quality_result = validate_image_quality(image_path)
+
+    finally:
+
+        try:
+
+            if image_path.exists():
+                image_path.unlink()
+
+        except Exception:
+            pass
+
+    return {
+        "angle_code": angle_code,
+        "passed": quality_result["passed"],
+        "errors": quality_result["errors"],
+    }
+
+
+# =========================================================
 # AREA
 # =========================================================
 
@@ -157,43 +218,6 @@ def process_single_image(
         image_url,
         image_path,
     )
-
-    # -----------------------------------------------------
-    # QUALITY CHECK
-    # -----------------------------------------------------
-
-    quality_result = validate_image_quality(image_path)
-
-    print()
-    print("=" * 60)
-    print("IMAGE QUALITY CHECK")
-    print("=" * 60)
-    print("Part:", part)
-    print("Passed:", quality_result["passed"])
-
-    if quality_result["errors"]:
-
-        print("Errors:")
-
-        for error in quality_result["errors"]:
-            print("-", error)
-
-    print("=" * 60)
-
-    # -----------------------------------------------------
-    # STOP IF QUALITY CHECK FAILED
-    # -----------------------------------------------------
-
-    if not quality_result["passed"]:
-
-        return {
-            "part": part,
-            "damage": [],
-            "annotated_url": None,
-            "annotated_path": None,
-            "pipeline": "quality_check",
-            "quality_check": quality_result,
-        }
 
     # -----------------------------------------------------
     # ANNOTATED OUTPUT
@@ -302,7 +326,6 @@ def process_single_image(
         "annotated_path": str(annotated_path) if annotated_path.exists() else None,
         "annotated_url": annotated_url,
         "pipeline": pipeline,
-        "quality_check": quality_result,
     }
 
 
@@ -371,82 +394,6 @@ def process_comparison_part(
         current_url,
         current_path,
     )
-
-    # =====================================================
-    # QUALITY CHECK - BASELINE
-    # =====================================================
-
-    baseline_quality = validate_image_quality(baseline_path)
-
-    print()
-    print("=" * 60)
-    print("BASELINE IMAGE QUALITY CHECK")
-    print("=" * 60)
-    print("Part:", part)
-    print("Passed:", baseline_quality["passed"])
-
-    if baseline_quality["errors"]:
-
-        print("Errors:")
-
-        for error in baseline_quality["errors"]:
-            print("-", error)
-
-    print("=" * 60)
-
-    if not baseline_quality["passed"]:
-
-        return {
-            "part": part,
-            "before": [],
-            "after": [],
-            "new_damage": [],
-            "before_annotated_url": None,
-            "after_annotated_url": None,
-            "before_annotated_path": None,
-            "after_annotated_path": None,
-            "quality_check_failed": True,
-            "quality_check_stage": "baseline",
-            "quality_errors": baseline_quality["errors"],
-        }
-
-    # =====================================================
-    # QUALITY CHECK - CURRENT
-    # =====================================================
-
-    current_quality = validate_image_quality(current_path)
-
-    print()
-    print("=" * 60)
-    print("CURRENT IMAGE QUALITY CHECK")
-    print("=" * 60)
-    print("Part:", part)
-    print("Passed:", current_quality["passed"])
-
-    if current_quality["errors"]:
-
-        print("Errors:")
-
-        for error in current_quality["errors"]:
-            print("-", error)
-
-    print("=" * 60)
-
-    if not current_quality["passed"]:
-
-        return {
-            "part": part,
-            "before": [],
-            "after": [],
-            "new_damage": [],
-            "before_annotated_url": None,
-            "after_annotated_url": None,
-            "before_annotated_path": None,
-            "after_annotated_path": None,
-            "quality_check_failed": True,
-            "quality_check_stage": "current",
-            "quality_errors": current_quality["errors"],
-        }
 
     # =====================================================
     # INTERIOR
