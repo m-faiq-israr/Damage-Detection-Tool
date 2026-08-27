@@ -90,10 +90,6 @@ def build_comparison_response(
 
             area = "interior"
 
-        # -------------------------------------------------
-        # Supabase annotated image URL
-        # -------------------------------------------------
-
         annotated_image_url = result.get("after_annotated")
 
         # -------------------------------------------------
