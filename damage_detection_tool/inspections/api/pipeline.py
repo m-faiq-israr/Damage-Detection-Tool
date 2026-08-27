@@ -1,6 +1,5 @@
 from pathlib import Path
 from uuid import uuid4
-import requests
 
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
@@ -66,18 +65,11 @@ PART_CODES = {
 
 
 # =========================================================
-# DOWNLOAD IMAGE
+# SAVE UPLOADED IMAGE
 # =========================================================
 
 
-def download_image(url, output_path):
-
-    response = requests.get(
-        url,
-        timeout=60,
-    )
-
-    response.raise_for_status()
+def save_uploaded_file(uploaded_file, output_path):
 
     output_path = Path(output_path)
 
@@ -86,8 +78,10 @@ def download_image(url, output_path):
         exist_ok=True,
     )
 
-    with open(output_path, "wb") as file:
-        file.write(response.content)
+    with open(output_path, "wb") as destination:
+
+        for chunk in uploaded_file.chunks():
+            destination.write(chunk)
 
     return str(output_path)
 
@@ -120,10 +114,10 @@ def validate_image_quality(image_path):
 def process_quality_check_image(
     request_id,
     angle_code,
-    image_url,
+    image_file,
 ):
     """
-    Download one image and run the quality check on it only
+    Save one uploaded image and run the quality check on it only
     (no damage detection).
 
     Returns:
@@ -147,8 +141,8 @@ def process_quality_check_image(
 
     image_path = job_dir / filename
 
-    download_image(
-        image_url,
+    save_uploaded_file(
+        image_file,
         image_path,
     )
 
@@ -194,7 +188,7 @@ def get_area(part):
 def process_single_image(
     request_id,
     part,
-    image_url,
+    image_file,
 ):
 
     media_dir = Path(settings.MEDIA_ROOT)
@@ -211,11 +205,11 @@ def process_single_image(
     image_path = job_dir / filename
 
     # -----------------------------------------------------
-    # DOWNLOAD ORIGINAL
+    # SAVE UPLOADED IMAGE
     # -----------------------------------------------------
 
-    download_image(
-        image_url,
+    save_uploaded_file(
+        image_file,
         image_path,
     )
 
@@ -332,13 +326,13 @@ def process_single_image(
 def process_comparison_part(
     request_id,
     part,
-    baseline_url,
-    current_url,
+    baseline_file,
+    current_file,
 ):
     """
     Process one part for before/after comparison.
 
-    Downloads:
+    Saves:
         baseline image
         current image
 
@@ -382,16 +376,16 @@ def process_comparison_part(
     current_annotated = job_dir / "current_annotated.jpg"
 
     # =====================================================
-    # DOWNLOAD IMAGES
+    # SAVE UPLOADED IMAGES
     # =====================================================
 
-    download_image(
-        baseline_url,
+    save_uploaded_file(
+        baseline_file,
         baseline_path,
     )
 
-    download_image(
-        current_url,
+    save_uploaded_file(
+        current_file,
         current_path,
     )
 

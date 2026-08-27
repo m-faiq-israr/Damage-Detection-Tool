@@ -191,29 +191,16 @@ def single_inspection_api(request):
     if auth_error:
         return auth_error
 
-    try:
-
-        import json
-
-        payload = json.loads(request.body)
-
-    except Exception:
-
-        return JsonResponse(
-            {"error": "Invalid JSON payload"},
-            status=400,
-        )
-
     # =====================================================
-    # REQUEST ID
+    # REQUEST FIELDS (multipart/form-data)
     # =====================================================
 
-    request_id = payload.get("request_id")
-    vehicle_id = payload.get("vehicle_id")
-    tenant_id = payload.get("tenant_id")
-    kind = payload.get("kind")
-    body_shape = payload.get("body_shape")
-    part_catalog_version = payload.get("part_catalog_version")
+    request_id = request.POST.get("request_id")
+    vehicle_id = request.POST.get("vehicle_id")
+    tenant_id = request.POST.get("tenant_id")
+    kind = request.POST.get("kind")
+    body_shape = request.POST.get("body_shape")
+    part_catalog_version = request.POST.get("part_catalog_version")
 
     if not request_id:
 
@@ -225,16 +212,15 @@ def single_inspection_api(request):
     # =====================================================
     # IMAGES
     # =====================================================
+    # Each uploaded file's field name IS the angle_code,
+    # e.g. "front", "rear_left", "rim_front_left".
 
-    images = payload.get(
-        "images",
-        [],
-    )
+    images = request.FILES
 
-    if not isinstance(images, list):
+    if not images:
 
         return JsonResponse(
-            {"error": "images must be an array"},
+            {"error": "at least one image file is required"},
             status=400,
         )
 
@@ -244,19 +230,7 @@ def single_inspection_api(request):
 
     results = []
 
-    for image in images:
-
-        angle_code = image.get("angle_code")
-
-        image_url = image.get("url")
-
-        if not angle_code:
-
-            continue
-
-        if not image_url:
-
-            continue
+    for angle_code, image_file in images.items():
 
         print()
         print("=" * 60)
@@ -266,7 +240,7 @@ def single_inspection_api(request):
         result = process_single_image(
             request_id=request_id,
             part=angle_code,
-            image_url=image_url,
+            image_file=image_file,
         )
 
         results.append(result)
@@ -444,21 +418,8 @@ def comparison_api(request):
     if auth_error:
         return auth_error
 
-    try:
-
-        import json
-
-        payload = json.loads(request.body)
-
-    except Exception:
-
-        return JsonResponse(
-            {"error": "Invalid JSON payload"},
-            status=400,
-        )
-
     # =====================================================
-    # REQUIRED REQUEST FIELDS
+    # REQUIRED REQUEST FIELDS (multipart/form-data)
     # =====================================================
 
     required_fields = [
@@ -468,13 +429,11 @@ def comparison_api(request):
         "kind",
         "body_shape",
         "part_catalog_version",
-        "baseline_images",
-        "current_images",
     ]
 
     for field in required_fields:
 
-        if field not in payload:
+        if not request.POST.get(field):
 
             return JsonResponse(
                 {"error": f"{field} is required"},
@@ -485,73 +444,42 @@ def comparison_api(request):
     # REQUEST VALUES
     # =====================================================
 
-    request_id = payload["request_id"]
+    request_id = request.POST["request_id"]
 
-    vehicle_id = payload["vehicle_id"]
+    vehicle_id = request.POST["vehicle_id"]
 
-    tenant_id = payload["tenant_id"]
+    tenant_id = request.POST["tenant_id"]
 
-    kind = payload["kind"]
+    kind = request.POST["kind"]
 
-    body_shape = payload["body_shape"]
+    body_shape = request.POST["body_shape"]
 
-    part_catalog_version = payload["part_catalog_version"]
-
-    baseline_images = payload["baseline_images"]
-
-    current_images = payload["current_images"]
-
-    # =====================================================
-    # VALIDATE IMAGE ARRAYS
-    # =====================================================
-
-    if not isinstance(
-        baseline_images,
-        list,
-    ):
-
-        return JsonResponse(
-            {"error": ("baseline_images " "must be an array")},
-            status=400,
-        )
-
-    if not isinstance(
-        current_images,
-        list,
-    ):
-
-        return JsonResponse(
-            {"error": ("current_images " "must be an array")},
-            status=400,
-        )
+    part_catalog_version = request.POST["part_catalog_version"]
 
     # =====================================================
     # MAP IMAGES BY ANGLE CODE
     # =====================================================
+    # File field names use the prefixes "baseline_" and
+    # "current_" followed by the angle_code, e.g.
+    # "baseline_front", "current_front".
 
     baseline_map = {}
 
-    for image in baseline_images:
-
-        angle_code = image.get("angle_code")
-
-        url = image.get("url")
-
-        if angle_code and url:
-
-            baseline_map[angle_code] = url
-
     current_map = {}
 
-    for image in current_images:
+    for field_name, image_file in request.FILES.items():
 
-        angle_code = image.get("angle_code")
+        if field_name.startswith("baseline_"):
 
-        url = image.get("url")
+            angle_code = field_name[len("baseline_") :]
 
-        if angle_code and url:
+            baseline_map[angle_code] = image_file
 
-            current_map[angle_code] = url
+        elif field_name.startswith("current_"):
+
+            angle_code = field_name[len("current_") :]
+
+            current_map[angle_code] = image_file
 
     # =====================================================
     # FIND COMMON PARTS
@@ -589,8 +517,8 @@ def comparison_api(request):
         result = process_comparison_part(
             request_id=request_id,
             part=part,
-            baseline_url=baseline_map[part],
-            current_url=current_map[part],
+            baseline_file=baseline_map[part],
+            current_file=current_map[part],
         )
 
         results.append(result)
@@ -778,20 +706,11 @@ def quality_check_api(request):
     if auth_error:
         return auth_error
 
-    try:
+    # =====================================================
+    # REQUEST FIELDS (multipart/form-data)
+    # =====================================================
 
-        import json
-
-        payload = json.loads(request.body)
-
-    except Exception:
-
-        return JsonResponse(
-            {"error": "Invalid JSON payload"},
-            status=400,
-        )
-
-    request_id = payload.get("request_id")
+    request_id = request.POST.get("request_id")
 
     if not request_id:
 
@@ -800,15 +719,18 @@ def quality_check_api(request):
             status=400,
         )
 
-    images = payload.get(
-        "images",
-        [],
-    )
+    # =====================================================
+    # IMAGES
+    # =====================================================
+    # Each uploaded file's field name IS the angle_code,
+    # e.g. "front", "rear_left".
 
-    if not isinstance(images, list) or not images:
+    images = request.FILES
+
+    if not images:
 
         return JsonResponse(
-            {"error": "images must be a non-empty array"},
+            {"error": "at least one image file is required"},
             status=400,
         )
 
@@ -818,25 +740,7 @@ def quality_check_api(request):
 
     results = []
 
-    for image in images:
-
-        angle_code = image.get("angle_code")
-
-        image_url = image.get("url")
-
-        if not angle_code:
-
-            return JsonResponse(
-                {"error": "angle_code is required for each image"},
-                status=400,
-            )
-
-        if not image_url:
-
-            return JsonResponse(
-                {"error": "url is required for each image"},
-                status=400,
-            )
+    for angle_code, image_file in images.items():
 
         print()
         print("=" * 60)
@@ -846,7 +750,7 @@ def quality_check_api(request):
         result = process_quality_check_image(
             request_id=request_id,
             angle_code=angle_code,
-            image_url=image_url,
+            image_file=image_file,
         )
 
         print("Passed:", result["passed"])
